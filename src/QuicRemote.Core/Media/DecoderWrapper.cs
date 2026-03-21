@@ -123,6 +123,82 @@ public class DecoderWrapper : IDisposable
         };
     }
 
+    /// <summary>
+    /// Gets decoder statistics
+    /// </summary>
+    public void GetStats(out int fps, out float latencyMs)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (_handle == IntPtr.Zero)
+        {
+            fps = 0;
+            latencyMs = 0;
+            return;
+        }
+
+        NativeMethods.QR_Decoder_GetStats(_handle, out fps, out latencyMs);
+    }
+
+    /// <summary>
+    /// Decodes raw frame data
+    /// </summary>
+    public DecodedFrame? DecodeFromData(byte[] data, long timestampUs, bool isKeyframe)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+
+        if (_handle == IntPtr.Zero)
+        {
+            throw new InvalidOperationException("Decoder not created");
+        }
+
+        if (data == null || data.Length == 0)
+        {
+            return null;
+        }
+
+        // Allocate native memory for data
+        var dataPtr = Marshal.AllocHGlobal(data.Length);
+        try
+        {
+            Marshal.Copy(data, 0, dataPtr, data.Length);
+
+            var nativePacket = new NativeMethods.QR_Packet
+            {
+                data = dataPtr,
+                size = data.Length,
+                timestamp_us = timestampUs,
+                is_keyframe = isKeyframe ? 1 : 0,
+                frame_num = 0
+            };
+
+            var packetPtr = Marshal.AllocHGlobal(Marshal.SizeOf<NativeMethods.QR_Packet>());
+            try
+            {
+                Marshal.StructureToPtr(nativePacket, packetPtr, false);
+
+                var result = NativeMethods.QR_Decoder_Decode(_handle, packetPtr, out var framePtr);
+                NativeMethods.ThrowOnError((NativeMethods.QR_Result)result);
+
+                if (framePtr == IntPtr.Zero)
+                {
+                    return null;
+                }
+
+                var frame = Marshal.PtrToStructure<NativeMethods.QR_Frame>(framePtr);
+                return new DecodedFrame(framePtr, frame);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(packetPtr);
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(dataPtr);
+        }
+    }
+
     public void Dispose()
     {
         if (_disposed)
