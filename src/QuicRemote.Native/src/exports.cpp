@@ -37,6 +37,8 @@ QR_API const char* QR_GetErrorDescription(QR_Result result)
     case QR_Error_AlreadyInitialized: return "Already initialized";
     case QR_Error_Timeout: return "Operation timeout";
     case QR_Error_OperationCancelled: return "Operation cancelled";
+    case QR_Error_BufferTooSmall: return "Buffer too small";
+    case QR_Error_NotSupported: return "Operation not supported";
     case QR_Error_DeviceNotFound: return "Device not found";
     case QR_Error_DeviceLost: return "Device lost";
     case QR_Error_DeviceBusy: return "Device busy";
@@ -54,6 +56,10 @@ QR_API const char* QR_GetErrorDescription(QR_Result result)
     case QR_Error_InputBlocked: return "Input blocked";
     case QR_Error_AudioDeviceNotFound: return "Audio device not found";
     case QR_Error_AudioCaptureFailed: return "Audio capture failed";
+    case QR_Error_ConnectionLost: return "Connection lost";
+    case QR_Error_ConnectionRefused: return "Connection refused";
+    case QR_Error_TimeoutConnect: return "Connection timeout";
+    case QR_Error_ProtocolError: return "Protocol error";
     default: return "Unknown error code";
     }
 }

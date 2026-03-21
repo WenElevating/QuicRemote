@@ -32,6 +32,8 @@ typedef enum QR_Result {
     QR_Error_AlreadyInitialized = -5,
     QR_Error_Timeout = -6,
     QR_Error_OperationCancelled = -7,
+    QR_Error_BufferTooSmall = -8,
+    QR_Error_NotSupported = -9,
     QR_Error_DeviceNotFound = -100,
     QR_Error_DeviceLost = -101,
     QR_Error_DeviceBusy = -102,
@@ -49,6 +51,11 @@ typedef enum QR_Result {
     QR_Error_InputBlocked = -501,
     QR_Error_AudioDeviceNotFound = -600,
     QR_Error_AudioCaptureFailed = -601,
+    // 网络错误 (-700 ~ -799)
+    QR_Error_ConnectionLost = -700,
+    QR_Error_ConnectionRefused = -701,
+    QR_Error_TimeoutConnect = -702,
+    QR_Error_ProtocolError = -703,
 } QR_Result;
 
 // 版本函数
