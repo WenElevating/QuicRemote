@@ -6,9 +6,9 @@ public static class MessageSerializer
 {
     public static MessageDeserializeResult Deserialize(ReadOnlySpan<byte> data)
     {
-        if (data.Length < 16)
+        if (data.Length < 12)
         {
-            return MessageDeserializeResult.InsufficientData(16);
+            return MessageDeserializeResult.InsufficientData(12);
         }
 
         var magic = BinaryPrimitives.ReadUInt16BigEndian(data);

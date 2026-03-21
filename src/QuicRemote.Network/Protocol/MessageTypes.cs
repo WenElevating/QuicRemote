@@ -27,16 +27,25 @@ public class SessionRequestMessage : Message
 
     public static SessionRequestMessage Deserialize(byte[] payload)
     {
+        if (payload.Length < 12)
+            throw new ArgumentException("Payload too short for SessionRequestMessage");
+
         var message = new SessionRequestMessage();
         var span = payload.AsSpan();
 
         message.Timestamp = BinaryPrimitives.ReadInt64BigEndian(span);
 
         var deviceIdLength = BinaryPrimitives.ReadInt32BigEndian(span.Slice(8));
+        if (payload.Length < 12 + deviceIdLength + 4)
+            throw new ArgumentException("Invalid device ID length");
+
         message.DeviceId = Encoding.UTF8.GetString(span.Slice(12, deviceIdLength));
 
         var nonceOffset = 12 + deviceIdLength;
         var nonceLength = BinaryPrimitives.ReadInt32BigEndian(span.Slice(nonceOffset));
+        if (payload.Length < nonceOffset + 4 + nonceLength)
+            throw new ArgumentException("Invalid nonce length");
+
         message.Nonce = span.Slice(nonceOffset + 4, nonceLength).ToArray();
 
         return message;
@@ -57,6 +66,9 @@ public class HeartbeatMessage : Message
 
     public static HeartbeatMessage Deserialize(byte[] payload)
     {
+        if (payload.Length < 8)
+            throw new ArgumentException("Payload too short for HeartbeatMessage");
+
         return new HeartbeatMessage
         {
             Timestamp = BinaryPrimitives.ReadInt64BigEndian(payload)
@@ -89,6 +101,9 @@ public class MouseEventMessage : Message
 
     public static MouseEventMessage Deserialize(byte[] payload)
     {
+        if (payload.Length < 16)
+            throw new ArgumentException("Payload too short for MouseEventMessage");
+
         var span = payload.AsSpan();
         return new MouseEventMessage
         {
@@ -124,6 +139,9 @@ public class KeyboardEventMessage : Message
 
     public static KeyboardEventMessage Deserialize(byte[] payload)
     {
+        if (payload.Length < 8)
+            throw new ArgumentException("Payload too short for KeyboardEventMessage");
+
         var span = payload.AsSpan();
         var flags = span[3];
         return new KeyboardEventMessage
