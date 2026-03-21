@@ -179,6 +179,60 @@ QuicRemote/
 
 ### 3.3 C API 接口
 
+#### 3.3.1 错误码定义
+
+```c
+typedef enum QR_Result {
+    // 成功
+    QR_Success = 0,
+
+    // 通用错误 (-1 ~ -99)
+    QR_Error_Unknown = -1,
+    QR_Error_InvalidParam = -2,
+    QR_Error_OutOfMemory = -3,
+    QR_Error_NotInitialized = -4,
+    QR_Error_AlreadyInitialized = -5,
+    QR_Error_Timeout = -6,
+    QR_Error_OperationCancelled = -7,
+
+    // 设备错误 (-100 ~ -199)
+    QR_Error_DeviceNotFound = -100,
+    QR_Error_DeviceLost = -101,
+    QR_Error_DeviceBusy = -102,
+
+    // 编码器错误 (-200 ~ -299)
+    QR_Error_EncoderNotSupported = -200,
+    QR_Error_EncoderCreateFailed = -201,
+    QR_Error_EncoderEncodeFailed = -202,
+    QR_Error_EncoderReconfigureFailed = -203,
+
+    // 解码器错误 (-300 ~ -399)
+    QR_Error_DecoderNotSupported = -300,
+    QR_Error_DecoderCreateFailed = -301,
+    QR_Error_DecoderDecodeFailed = -302,
+
+    // 捕获错误 (-400 ~ -499)
+    QR_Error_CaptureFailed = -400,
+    QR_Error_CaptureAccessDenied = -401,
+    QR_Error_CaptureDesktopSwitched = -402,
+
+    // 输入错误 (-500 ~ -599)
+    QR_Error_InputAccessDenied = -500,
+    QR_Error_InputBlocked = -501,
+
+    // 音频错误 (-600 ~ -699)
+    QR_Error_AudioDeviceNotFound = -600,
+    QR_Error_AudioCaptureFailed = -601,
+} QR_Result;
+
+// 获取错误描述
+const char* QR_GetErrorDescription(QR_Result result);
+const char* QR_GetVersionString();
+uint32_t QR_GetVersion();
+```
+
+#### 3.3.2 核心接口
+
 ```c
 // 初始化/销毁
 QR_Result QR_Init(QR_Config* config);
@@ -213,6 +267,69 @@ QR_Result QR_Audio_StopCapture();
 
 // 回调注册
 QR_Result QR_SetFrameCallback(QR_FrameCallback callback, void* context);
+```
+
+#### 3.3.3 内存生命周期管理
+
+**帧数据所有权规则：**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    帧数据生命周期                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. GetFrame 返回的帧数据由调用者拥有                           │
+│  2. 调用者必须在使用完毕后调用 ReleaseFrame                     │
+│  3. 未释放的帧会导致纹理池耗尽，影响捕获性能                     │
+│  4. 帧数据不是线程安全的，不应跨线程传递                        │
+│  5. 最大未释放帧数：30帧（超过将阻塞捕获）                      │
+│                                                                 │
+│  示例:                                                          │
+│  QR_Frame* frame;                                               │
+│  QR_Capture_GetFrame(&frame);    // 获取帧，获得所有权          │
+│  // ... 使用帧数据 ...                                          │
+│  QR_Capture_ReleaseFrame(frame); // 释放帧，归还纹理池          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**编码包生命周期：**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    编码包生命周期                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. Encode 输出的 Packet 由调用者拥有                           │
+│  2. Packet 内部数据在下次 Encode 调用前有效                     │
+│  3. 如需长期保存，调用者应拷贝数据                               │
+│  4. 推荐使用环形缓冲区管理 Packet 内存                           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**C# SafeHandle 封装：**
+
+```csharp
+public sealed class NativeFrameHandle : SafeHandleZeroOrMinusOneIsInvalid
+{
+    public NativeFrameHandle() : base(true) { }
+
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.QR_Capture_ReleaseFrame(handle);
+        return true;
+    }
+}
+
+public sealed class EncoderHandle : SafeHandleZeroOrMinusOneIsInvalid
+{
+    protected override bool ReleaseHandle()
+    {
+        NativeMethods.QR_Encoder_Destroy(handle);
+        return true;
+    }
+}
 ```
 
 ---
@@ -787,7 +904,583 @@ tests/
 
 ---
 
-## 12. 里程碑规划
+## 12. 日志系统设计
+
+### 12.1 日志级别
+
+| 级别 | 用途 |
+|------|------|
+| Trace | 详细追踪信息，仅调试模式 |
+| Debug | 调试信息，开发阶段 |
+| Info | 常规操作信息 |
+| Warning | 警告信息，不影响正常运行 |
+| Error | 错误信息，需要关注 |
+| Critical | 严重错误，影响核心功能 |
+
+### 12.2 日志输出
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     日志输出目标                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
+│  │  文件日志   │  │ Windows事件 │  │  远程上报   │            │
+│  │             │  │    日志     │  │   (可选)    │            │
+│  └─────────────┘  └─────────────┘  └─────────────┘            │
+│                                                                 │
+│  路径: %AppData%/QuicRemote/logs/                              │
+│  格式: quicremote_YYYYMMDD.log                                 │
+│  滚动: 按日期滚动，保留30天                                     │
+│  大小: 单文件最大 50MB                                          │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 12.3 日志格式
+
+```
+[时间] [级别] [线程ID] [模块] 消息内容
+[2026-03-21 10:30:45.123] [INFO] [12] [Network] 连接建立: QR-AB1234
+[2026-03-21 10:30:45.456] [DEBUG] [8] [Encoder] NVENC 编码帧: 1920x1080, 2.1ms
+```
+
+### 12.4 敏感信息处理
+
+| 信息类型 | 处理方式 |
+|---------|---------|
+| 密码 | 完全脱敏 (*****) |
+| 令牌 | 仅显示前6位 |
+| IP地址 | 最后一段隐藏 (192.168.1.*) |
+| 文件路径 | 用户目录替换为 ~ |
+
+### 12.5 结构化日志
+
+```csharp
+// 使用 Serilog
+Log.Information("会话建立 {DeviceId} {ConnectionType} {Latency}ms",
+    deviceId, connectionType, latency);
+
+// 输出JSON格式便于分析
+{
+    "timestamp": "2026-03-21T10:30:45.123Z",
+    "level": "Information",
+    "message": "会话建立",
+    "properties": {
+        "DeviceId": "QR-AB1234",
+        "ConnectionType": "P2P",
+        "Latency": 12
+    }
+}
+```
+
+---
+
+## 13. 配置管理设计
+
+### 13.1 配置文件
+
+```
+%AppData%/QuicRemote/
+├── config.json          # 主配置文件
+├── profiles/            # 连接配置文件
+│   ├── default.json
+│   └── gaming.json
+└── certificates/        # 证书文件
+    └── client.pfx
+```
+
+### 13.2 配置项结构
+
+```csharp
+public class AppConfig
+{
+    // 网络配置
+    public NetworkConfig Network { get; set; }
+
+    // 媒体配置
+    public MediaConfig Media { get; set; }
+
+    // UI配置
+    public UiConfig Ui { get; set; }
+
+    // 安全配置
+    public SecurityConfig Security { get; set; }
+
+    // 日志配置
+    public LoggingConfig Logging { get; set; }
+}
+
+public class NetworkConfig
+{
+    public int ListenPort { get; set; } = 48960;
+    public int MaxConnections { get; set; } = 5;
+    public bool EnableP2P { get; set; } = true;
+    public bool EnableRelay { get; set; } = true;
+    public string RelayServer { get; set; } = "relay.quicremote.com";
+    public int ConnectionTimeout { get; set; } = 30000;
+}
+
+public class MediaConfig
+{
+    public VideoConfig Video { get; set; }
+    public AudioConfig Audio { get; set; }
+}
+
+public class VideoConfig
+{
+    public string PreferredEncoder { get; set; } = "auto";  // auto, nvenc, amf, qsv, software
+    public string PreferredCodec { get; set; } = "h265";    // h264, h265, vp9
+    public int TargetFramerate { get; set; } = 60;
+    public int MaxBitrate { get; set; } = 50000;  // Kbps
+    public int QualityPreset { get; set; } = 2;   // 1=速度, 2=平衡, 3=质量
+}
+```
+
+### 13.3 配置热更新
+
+```csharp
+public interface IConfigService
+{
+    T Get<T>(string key);
+    void Set<T>(string key, T value);
+    IObservable<T> Observe<T>(string key);
+    event EventHandler<ConfigChangedEventArgs> ConfigChanged;
+}
+
+// 使用示例
+configService.Observe<int>("Media.Video.TargetFramerate")
+    .Subscribe(fps => encoder.SetFramerate(fps));
+```
+
+### 13.4 默认配置
+
+```json
+{
+    "Network": {
+        "ListenPort": 48960,
+        "EnableP2P": true,
+        "EnableRelay": true,
+        "ConnectionTimeout": 30000
+    },
+    "Media": {
+        "Video": {
+            "PreferredEncoder": "auto",
+            "PreferredCodec": "h265",
+            "TargetFramerate": 60,
+            "MaxBitrate": 50000
+        },
+        "Audio": {
+            "Enabled": true,
+            "SampleRate": 48000,
+            "Channels": 2
+        }
+    },
+    "Ui": {
+        "Theme": "system",
+        "Language": "zh-CN"
+    },
+    "Security": {
+        "AuthMode": "hybrid",
+        "SessionTimeout": 3600
+    },
+    "Logging": {
+        "Level": "info",
+        "EnableFileLog": true,
+        "EnableRemoteLog": false
+    }
+}
+```
+
+---
+
+## 14. 中继服务器设计
+
+### 14.1 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     中继服务器集群                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│                    ┌─────────────┐                             │
+│                    │ 负载均衡器  │                             │
+│                    │   (LB)      │                             │
+│                    └──────┬──────┘                             │
+│                           │                                     │
+│         ┌─────────────────┼─────────────────┐                  │
+│         │                 │                 │                  │
+│         ▼                 ▼                 ▼                  │
+│   ┌───────────┐     ┌───────────┐     ┌───────────┐          │
+│   │ Relay #1  │     │ Relay #2  │     │ Relay #3  │          │
+│   │  (CN-SH)  │     │  (CN-BJ)  │     │  (US-LA)  │          │
+│   └─────┬─────┘     └─────┬─────┘     └─────┬─────┘          │
+│         │                 │                 │                  │
+│         └─────────────────┼─────────────────┘                  │
+│                           │                                     │
+│                    ┌──────▼──────┐                             │
+│                    │  Redis      │                             │
+│                    │  (会话状态)  │                             │
+│                    └─────────────┘                             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 14.2 技术栈
+
+| 组件 | 技术选型 |
+|------|---------|
+| 框架 | ASP.NET Core 8.0 |
+| QUIC | MsQuic |
+| 存储 | Redis (会话状态) |
+| 部署 | Docker + Kubernetes |
+| 监控 | Prometheus + Grafana |
+
+### 14.3 性能指标
+
+| 指标 | 目标值 |
+|------|--------|
+| 单节点并发连接 | 10,000 |
+| 转发延迟 | < 5ms |
+| 吞吐量 | 10 Gbps |
+| 可用性 | 99.9% |
+
+### 14.4 核心功能
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Relay Server 功能                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1. 连接注册                                                    │
+│     - 设备ID → QUIC连接映射                                    │
+│     - 心跳检测 (30s间隔)                                        │
+│     - 连接状态跟踪                                              │
+│                                                                 │
+│  2. 数据转发                                                    │
+│     - 双向数据透传                                              │
+│     - 流量统计                                                  │
+│     - 带宽限制 (可配置)                                         │
+│                                                                 │
+│  3. 认证授权                                                    │
+│     - JWT令牌验证                                               │
+│     - 权限检查                                                  │
+│     - 访问日志                                                  │
+│                                                                 │
+│  4. NAT穿透辅助                                                 │
+│     - STUN服务                                                  │
+│     - 候选地址交换                                              │
+│     - 穿透成功率统计                                            │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 14.5 中继选择策略
+
+```csharp
+public class RelaySelector
+{
+    // 选择最近的中继节点
+    public RelayNode SelectBestNode(string clientRegion)
+    {
+        var nodes = _registry.GetAvailableNodes();
+
+        return nodes
+            .OrderBy(n => GetLatency(n.Region, clientRegion))
+            .ThenBy(n => n.CurrentLoad)
+            .First();
+    }
+
+    // 区域映射
+    private readonly Dictionary<string, string> _regionMapping = new()
+    {
+        ["CN-EAST"] = "CN-SH",
+        ["CN-NORTH"] = "CN-BJ",
+        ["CN-SOUTH"] = "CN-GZ",
+        ["US-WEST"] = "US-LA",
+        ["US-EAST"] = "US-NY",
+        ["EU-WEST"] = "EU-LON"
+    };
+}
+```
+
+### 14.6 部署方案
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+services:
+  relay:
+    image: quicremote/relay:latest
+    ports:
+      - "48960:48960/udp"
+      - "48960:48960/tcp"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Redis__Connection=redis:6379
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis-data:/data
+```
+
+---
+
+## 15. 编码器热切换设计
+
+### 15.1 切换触发条件
+
+| 触发条件 | 说明 |
+|---------|------|
+| 编码错误 | 连续3次编码失败 |
+| 设备丢失 | GPU驱动崩溃/设备移除 |
+| 性能降级 | 编码延迟超过阈值 |
+| 手动切换 | 用户主动切换 |
+
+### 15.2 切换流程
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   编码器热切换流程                               │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   检测到故障                                                    │
+│        │                                                        │
+│        ▼                                                        │
+│   ┌─────────────┐                                              │
+│   │ 发送切换通知│ ──► 控制端准备接收新编码流                   │
+│   │ 到控制端    │                                              │
+│   └──────┬──────┘                                              │
+│          │                                                      │
+│          ▼                                                      │
+│   ┌─────────────┐                                              │
+│   │ 销毁旧编码器│ ──► 释放GPU资源                              │
+│   └──────┬──────┘                                              │
+│          │                                                      │
+│          ▼                                                      │
+│   ┌─────────────┐                                              │
+│   │ 创建新编码器│ ──► 选择备用编码器                            │
+│   └──────┬──────┘                                              │
+│          │                                                      │
+│          ▼                                                      │
+│   ┌─────────────┐                                              │
+│   │ 发送关键帧  │ ──► 确保解码器能正确恢复                     │
+│   └──────┬──────┘                                              │
+│          │                                                      │
+│          ▼                                                      │
+│   ┌─────────────┐                                              │
+│   │ 恢复正常编码│                                              │
+│   └─────────────┘                                              │
+│                                                                 │
+│   预期中断时间: < 100ms                                         │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 15.3 切换协议消息
+
+```csharp
+public class EncoderSwitchMessage
+{
+    public string OldEncoder { get; set; }      // NVENC
+    public string NewEncoder { get; set; }      // AMF
+    public string Codec { get; set; }           // H265
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public int Bitrate { get; set; }
+}
+
+// 控制端响应
+public class EncoderSwitchAck
+{
+    public bool Ready { get; set; }
+    public int ExpectedKeyFrameTime { get; set; }  // 预期关键帧时间
+}
+```
+
+### 15.4 控制端处理
+
+```csharp
+public async Task OnEncoderSwitchAsync(EncoderSwitchMessage msg)
+{
+    // 1. 暂停解码
+    _decoder.Pause();
+
+    // 2. 重置解码器
+    _decoder.Reset();
+
+    // 3. 通知准备就绪
+    await SendAsync(new EncoderSwitchAck { Ready = true });
+
+    // 4. 等待关键帧
+    await WaitForKeyFrameAsync();
+
+    // 5. 恢复解码
+    _decoder.Resume();
+
+    // 6. 显示切换提示 (可选)
+    ShowNotification($"编码器已切换: {msg.OldEncoder} → {msg.NewEncoder}");
+}
+```
+
+---
+
+## 16. P2P穿透成功率目标
+
+### 16.1 NAT类型分布与穿透策略
+
+| NAT类型 | 市场占比 | 穿透方法 | 成功率目标 |
+|---------|---------|---------|-----------|
+| Full Cone | 15% | 直接打洞 | 99% |
+| Restricted Cone | 20% | 端口预测 | 95% |
+| Port Restricted | 25% | 端口预测 | 85% |
+| Symmetric | 35% | 中继回退 | 60% (P2P) → 100% (中继) |
+| Double NAT | 5% | 中继回退 | 0% (P2P) → 100% (中继) |
+
+### 16.2 整体成功率目标
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    P2P穿透成功率                                │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  目标: P2P直连成功率 ≥ 65%                                      │
+│        P2P + 中继 总成功率 ≥ 99.5%                              │
+│                                                                 │
+│  局域网场景: 100% P2P                                           │
+│  公网场景: 65% P2P + 34.5% 中继                                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 16.3 穿透流程优化
+
+```
+1. STUN探测 (并行)
+   ├── 探测NAT类型
+   ├── 获取公网地址
+   └── 检测是否对称NAT
+
+2. ICE候选收集
+   ├── 本地地址
+   ├── STUN反射地址
+   └── TURN中继地址 (备用)
+
+3. 连接尝试 (超时5秒)
+   ├── 尝试P2P打洞
+   │   ├── 成功 → 建立直连
+   │   └── 失败 → 进入步骤4
+   └──
+
+4. 中继回退
+   └── 通过中继服务器建立连接
+```
+
+---
+
+## 17. 多显示器详细设计
+
+### 17.1 显示器枚举与管理
+
+```csharp
+public class MonitorManager
+{
+    public IReadOnlyList<MonitorInfo> GetMonitors()
+    {
+        // 使用 EnumDisplayMonitors 获取所有显示器
+        // 包含: 分辨率、位置、DPI、主显示器标识
+    }
+
+    public MonitorLayout GetLayout()
+    {
+        // 返回显示器布局信息
+        // 用于控制端显示正确排列
+    }
+}
+
+public class MonitorInfo
+{
+    public int Index { get; set; }
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public int X { get; set; }
+    public int Y { get; set; }
+    public float DpiScale { get; set; }
+    public bool IsPrimary { get; set; }
+    public string Name { get; set; }
+}
+```
+
+### 17.2 DPI缩放处理
+
+```csharp
+public class DpiHelper
+{
+    // 逻辑坐标 → 物理坐标
+    public Point LogicalToPhysical(Point logical, MonitorInfo monitor)
+    {
+        return new Point(
+            (int)(logical.X * monitor.DpiScale),
+            (int)(logical.Y * monitor.DpiScale)
+        );
+    }
+
+    // 物理坐标 → 逻辑坐标
+    public Point PhysicalToLogical(Point physical, MonitorInfo monitor)
+    {
+        return new Point(
+            (int)(physical.X / monitor.DpiScale),
+            (int)(physical.Y / monitor.DpiScale)
+        );
+    }
+
+    // 跨显示器坐标转换
+    public Point TransformCoordinate(Point source, MonitorInfo from, MonitorInfo to)
+    {
+        // 处理不同DPI显示器间的坐标转换
+    }
+}
+```
+
+### 17.3 控制端显示模式
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    多显示器显示模式                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  模式1: 单显示器                                                │
+│  ┌───────────────────┐                                         │
+│  │     显示器 1      │  全屏显示选中的单个显示器                │
+│  └───────────────────┘                                         │
+│                                                                 │
+│  模式2: 全部显示 (网格布局)                                     │
+│  ┌───────────┬───────────┐                                     │
+│  │  显示器1  │  显示器2  │  缩略图显示所有显示器                │
+│  ├───────────┼───────────┤  点击切换到单显示器模式              │
+│  │  显示器3  │           │                                     │
+│  └───────────┴───────────┘                                     │
+│                                                                 │
+│  模式3: 全部显示 (虚拟桌面)                                     │
+│  ┌─────────────────────────────────────────────┐               │
+│  │   显示器1    │    显示器2    │    显示器3   │               │
+│  │              │               │              │               │
+│  └─────────────────────────────────────────────┘               │
+│  按照实际布局显示，支持滚动和缩放                               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 18. 里程碑规划
 
 ### Phase 1: 基础框架 (4周)
 - 项目脚手架搭建
@@ -840,3 +1533,30 @@ tests/
 - [DXGI Desktop Duplication API](https://docs.microsoft.com/en-us/windows/win32/direct3darticles/desktop-dup-api)
 - [NVENC Programming Guide](https://developer.nvidia.com/nvidia-video-codec-sdk)
 - [QUIC Protocol RFC 9000](https://www.rfc-editor.org/rfc/rfc9000)
+
+### C. 术语表
+
+| 术语 | 英文 | 说明 |
+|------|------|------|
+| QUIC | Quick UDP Internet Connections | 基于UDP的新一代传输协议，集成TLS 1.3 |
+| P2P | Peer-to-Peer | 点对点直连通信 |
+| NAT | Network Address Translation | 网络地址转换，用于内网地址映射 |
+| STUN | Session Traversal Utilities for NAT | NAT穿透辅助协议 |
+| TURN | Traversal Using Relays around NAT | 中继穿透协议 |
+| ICE | Interactive Connectivity Establishment | 交互式连接建立框架 |
+| NVENC | NVIDIA Encoder | NVIDIA硬件视频编码器 |
+| NVDEC | NVIDIA Decoder | NVIDIA硬件视频解码器 |
+| AMF | Advanced Media Framework | AMD媒体框架 |
+| QSV | Quick Sync Video | Intel快速同步视频技术 |
+| DXGI | DirectX Graphics Infrastructure | DirectX图形基础设施 |
+| GOP | Group of Pictures | 图像组，视频编码中的帧序列 |
+| NAL | Network Abstraction Layer | 网络抽象层，H.264/H.265编码单元 |
+| DPI | Dots Per Inch | 每英寸点数，显示缩放比例 |
+| WASAPI | Windows Audio Session API | Windows音频会话接口 |
+
+### D. 文档修订记录
+
+| 版本 | 日期 | 修订人 | 说明 |
+|------|------|--------|------|
+| 1.0 | 2026-03-21 | Claude | 初稿完成 |
+| 1.1 | 2026-03-21 | Claude | 补充错误码定义、内存生命周期、日志系统、配置管理、中继服务器、编码器热切换、P2P目标、多显示器详细设计、术语表 |
