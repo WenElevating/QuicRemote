@@ -23,6 +23,8 @@ x86/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
+build/
+build2/
 
 # Native
 *.dll
