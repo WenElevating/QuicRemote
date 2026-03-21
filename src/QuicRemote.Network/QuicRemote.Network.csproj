@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnablePreviewFeatures>true</EnablePreviewFeatures>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::IsOSPlatform('windows'))">10.0.17763.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::IsOSPlatform('linux'))">10.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::IsOSPlatform('osx'))">10.15</SupportedOSPlatformVersion>
+    <!-- Disable CA2252 (preview features) and CA1416 (platform support) as errors since QUIC is a preview feature -->
+    <NoWarn>$(NoWarn);CA2252;CA1416</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.IO.Pipelines" Version="8.0.0" />
+  </ItemGroup>
+</Project>
