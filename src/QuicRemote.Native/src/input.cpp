@@ -2,6 +2,7 @@
 #include <Windows.h>
 #include <hidusage.h>
 #include <mutex>
+#include <algorithm>
 
 namespace QuicRemote {
 namespace Input {
@@ -198,8 +199,8 @@ QR_Result InputInjector::MouseMove(int x, int y, int absolute)
         int abs_y = MulDiv(target_y - virtual_desktop_top_, 65536, virtual_desktop_height_);
 
         // 确保在有效范围内
-        abs_x = max(0, min(65535, abs_x));
-        abs_y = max(0, min(65535, abs_y));
+        abs_x = std::max(0, std::min(65535, abs_x));
+        abs_y = std::max(0, std::min(65535, abs_y));
 
         INPUT input = {};
         input.type = INPUT_MOUSE;
@@ -354,41 +355,3 @@ QR_Result InputInjector::Key(QR_KeyCode key, QR_KeyAction action)
 
 } // namespace Input
 } // namespace QuicRemote
-
-// ============================================================================
-// C API 导出
-// ============================================================================
-
-extern "C" {
-
-QR_API QR_Result QR_Input_Initialize(void)
-{
-    return QuicRemote::Input::GetInputInjector().Initialize();
-}
-
-QR_API QR_Result QR_Input_MouseMove(int x, int y, int absolute)
-{
-    return QuicRemote::Input::GetInputInjector().MouseMove(x, y, absolute);
-}
-
-QR_API QR_Result QR_Input_MouseButton(QR_MouseButton button, QR_ButtonAction action)
-{
-    return QuicRemote::Input::GetInputInjector().MouseButton(button, action);
-}
-
-QR_API QR_Result QR_Input_MouseWheel(int delta, int is_horizontal)
-{
-    return QuicRemote::Input::GetInputInjector().MouseWheel(delta, is_horizontal);
-}
-
-QR_API QR_Result QR_Input_Key(QR_KeyCode key, QR_KeyAction action)
-{
-    return QuicRemote::Input::GetInputInjector().Key(key, action);
-}
-
-QR_API QR_Result QR_Input_Shutdown(void)
-{
-    return QuicRemote::Input::GetInputInjector().Shutdown();
-}
-
-} // extern "C"

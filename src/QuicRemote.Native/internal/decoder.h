@@ -132,7 +132,8 @@ public:
     QR_Result Destroy(DecoderHandle* handle);
 
 private:
-    ComPtr<ID3D11Device> shared_device_;
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
 };
 
 // 全局实例

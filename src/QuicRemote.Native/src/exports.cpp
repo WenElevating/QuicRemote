@@ -179,7 +179,7 @@ QR_API QR_Result QR_Encoder_Create(QR_EncoderConfig* config, QR_EncoderHandle* h
     {
         return QR_Error_NotInitialized;
     }
-    return QuicRemote::Encoder::GetEncoderManager().Create(config,
+    return QuicRemote::Encoder::GetEncoderManager().Create(*config,
         reinterpret_cast<QuicRemote::Encoder::EncoderHandle**>(handle));
 }
 
@@ -247,7 +247,7 @@ QR_API QR_Result QR_Decoder_Create(QR_DecoderConfig* config, QR_DecoderHandle* h
     {
         return QR_Error_NotInitialized;
     }
-    return QuicRemote::Decoder::GetDecoderManager().Create(config,
+    return QuicRemote::Decoder::GetDecoderManager().Create(*config,
         reinterpret_cast<QuicRemote::Decoder::DecoderHandle**>(handle));
 }
 

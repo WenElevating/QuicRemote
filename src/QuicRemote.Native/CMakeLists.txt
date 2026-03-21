@@ -36,6 +36,8 @@ if(WIN32)
         NOMINMAX
         QR_EXPORTS
     )
+    # Use UTF-8 source and execution character set
+    target_compile_options(QuicRemote.Native PRIVATE /utf-8)
 endif()
 
 target_include_directories(QuicRemote.Native

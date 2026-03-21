@@ -365,10 +365,9 @@ void CaptureManager::ProcessDirtyRects(IDXGIOutputDuplication* duplication)
 
     // Get dirty rectangles count
     UINT dirty_rects_buffer_size = 0;
-    UINT dirty_rects_count = 0;
 
     HRESULT hr = duplication->GetFrameDirtyRects(
-        0, nullptr, &dirty_rects_buffer_size, &dirty_rects_count
+        0, nullptr, &dirty_rects_buffer_size
     );
 
     if (hr != DXGI_ERROR_MORE_DATA && FAILED(hr)) {
@@ -380,9 +379,10 @@ void CaptureManager::ProcessDirtyRects(IDXGIOutputDuplication* duplication)
     }
 
     // Allocate buffer and get dirty rects
+    UINT dirty_rects_count = dirty_rects_buffer_size / sizeof(RECT);
     std::vector<RECT> rects(dirty_rects_count);
     hr = duplication->GetFrameDirtyRects(
-        dirty_rects_buffer_size, rects.data(), &dirty_rects_buffer_size, &dirty_rects_count
+        dirty_rects_buffer_size, rects.data(), &dirty_rects_buffer_size
     );
 
     if (FAILED(hr)) {
@@ -810,42 +810,3 @@ CaptureManager& GetCaptureManager()
 
 } // namespace Capture
 } // namespace QuicRemote
-
-// ============================================================================
-// C API Implementation
-// ============================================================================
-
-extern "C" {
-
-QR_API int QR_Capture_GetMonitorCount(void)
-{
-    return QuicRemote::Capture::CaptureManager::GetMonitorCount();
-}
-
-QR_API QR_Result QR_Capture_GetMonitorInfo(int index, QR_MonitorInfo* info)
-{
-    return QuicRemote::Capture::CaptureManager::GetMonitorInfo(index, info);
-}
-
-QR_API QR_Result QR_Capture_Start(int monitor_index)
-{
-    return QuicRemote::Capture::GetCaptureManager().Initialize(monitor_index);
-}
-
-QR_API QR_Result QR_Capture_GetFrame(QR_Frame** frame, int timeout_ms)
-{
-    return QuicRemote::Capture::GetCaptureManager().GetFrame(frame, timeout_ms);
-}
-
-QR_API QR_Result QR_Capture_ReleaseFrame(QR_Frame* frame)
-{
-    return QuicRemote::Capture::GetCaptureManager().ReleaseFrame(frame);
-}
-
-QR_API QR_Result QR_Capture_Stop(void)
-{
-    QuicRemote::Capture::GetCaptureManager().Shutdown();
-    return QR_Success;
-}
-
-} // extern "C"

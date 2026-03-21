@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../include/quicremote.h"
 #include <d3d11.h>
 #include <dxgi1_2.h>
 #include <wrl/client.h>
@@ -71,8 +72,8 @@ public:
     );
 
     // 格式转换
-    static DXGI_FORMAT PixelFormatToDXGI(enum QR_PixelFormat format);
-    static enum QR_PixelFormat DXGIToPixelFormat(DXGI_FORMAT format);
+    static DXGI_FORMAT PixelFormatToDXGI(QR_PixelFormat format);
+    static QR_PixelFormat DXGIToPixelFormat(DXGI_FORMAT format);
 
     // 错误处理
     static std::string GetErrorString(HRESULT hr);
