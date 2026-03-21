@@ -53,7 +53,7 @@ public static class MessageSerializer
         return type switch
         {
             MessageType.SessionRequest => SessionRequestMessage.Deserialize(payload),
-            MessageType.Heartbeat => new HeartbeatMessage(),
+            MessageType.Heartbeat => HeartbeatMessage.Deserialize(payload),
             MessageType.MouseEvent => MouseEventMessage.Deserialize(payload),
             MessageType.KeyboardEvent => KeyboardEventMessage.Deserialize(payload),
             _ => null

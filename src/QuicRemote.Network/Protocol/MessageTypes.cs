@@ -54,6 +54,14 @@ public class HeartbeatMessage : Message
         BinaryPrimitives.WriteInt64BigEndian(buffer, Timestamp);
         return buffer;
     }
+
+    public static HeartbeatMessage Deserialize(byte[] payload)
+    {
+        return new HeartbeatMessage
+        {
+            Timestamp = BinaryPrimitives.ReadInt64BigEndian(payload)
+        };
+    }
 }
 
 public class MouseEventMessage : Message
