@@ -4,12 +4,6 @@ project(QuicRemote.Native VERSION 0.1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-if(WIN32)
-    add_definitions(-DWIN32_LEAN_AND_MEAN)
-    add_definitions(-DNOMINMAX)
-    add_definitions(-DQR_EXPORTS)
-endif()
-
 set(SOURCES
     src/dllmain.cpp
     src/exports.cpp
@@ -25,6 +19,14 @@ set(HEADERS
 )
 
 add_library(QuicRemote.Native SHARED ${SOURCES} ${HEADERS})
+
+if(WIN32)
+    target_compile_definitions(QuicRemote.Native PRIVATE
+        WIN32_LEAN_AND_MEAN
+        NOMINMAX
+        QR_EXPORTS
+    )
+endif()
 
 target_include_directories(QuicRemote.Native
     PUBLIC include

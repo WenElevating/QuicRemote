@@ -1,10 +1,12 @@
 #include "quicremote.h"
 #include <atomic>
 #include <string>
+#include <mutex>
 
 namespace {
     std::atomic<bool> g_initialized{false};
     std::string g_versionString;
+    std::once_flag g_versionOnce;
 }
 
 extern "C" {
@@ -16,12 +18,11 @@ QR_API uint32_t QR_GetVersion(void)
 
 QR_API const char* QR_GetVersionString(void)
 {
-    if (g_versionString.empty())
-    {
+    std::call_once(g_versionOnce, []() {
         g_versionString = std::to_string(QR_VERSION_MAJOR) + "." +
                           std::to_string(QR_VERSION_MINOR) + "." +
                           std::to_string(QR_VERSION_PATCH);
-    }
+    });
     return g_versionString.c_str();
 }
 
