@@ -1,0 +1,20 @@
+<Application x:Class="QuicRemote.Host.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <Color x:Key="LightBackgroundColor">#F5F5F7</Color>
+        <Color x:Key="LightCardColor">#FFFFFF</Color>
+        <Color x:Key="DarkBackgroundColor">#1C1C1E</Color>
+        <Color x:Key="DarkCardColor">#2C2C2E</Color>
+        <Color x:Key="AccentColor">#007AFF</Color>
+
+        <Style TargetType="Window">
+            <Setter Property="Background" Value="{DynamicResource WindowBackgroundBrush}"/>
+        </Style>
+
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,8"/>
+        </Style>
+    </Application.Resources>
+</Application>
