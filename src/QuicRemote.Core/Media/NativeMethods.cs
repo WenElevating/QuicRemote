@@ -184,7 +184,7 @@ public static class NativeMethods
         public int height;
         public int x;
         public int y;
-        [MarshalAs(UnmanagedType.U1)] public int is_primary;
+        public int is_primary;
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 128)]
         public string name;
     }
