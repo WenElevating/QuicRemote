@@ -5,6 +5,8 @@ using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using QuicRemote.Core.Media;
+using QuicRemote.Core.Session;
+using QuicRemote.Host.Resources;
 using QuicRemote.Host.Services;
 
 namespace QuicRemote.Host.ViewModels;
@@ -28,7 +30,7 @@ public partial class MainViewModel : ObservableObject
     private bool _isRunning;
 
     [ObservableProperty]
-    private string _statusText = "Ready to start";
+    private string _statusText = Strings.StatusReady;
 
     [ObservableProperty]
     private string _statusColor = "#86868B";
@@ -61,11 +63,22 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string _password = string.Empty;
 
+    // Session management properties
+    [ObservableProperty]
+    private string _activeController = Strings.NoneText;
+
+    // Language properties
+    [ObservableProperty]
+    private LanguageOption _selectedLanguage;
+
     public ObservableCollection<MonitorInfo> Monitors { get; } = new();
+
+    public ObservableCollection<ClientSessionInfo> ConnectedClientsList { get; } = new();
 
     public string[] CodecOptions { get; } = new[] { "H264", "H265" };
     public int[] FramerateOptions { get; } = new[] { 30, 60, 120 };
     public int[] BitratePresets { get; } = new[] { 1000, 2000, 5000, 10000, 20000, 50000 };
+    public IReadOnlyList<LanguageOption> AvailableLanguages => LocalizationService.Instance.AvailableLanguages;
 
     public MainViewModel()
     {
@@ -74,6 +87,9 @@ public partial class MainViewModel : ObservableObject
         _hostService.ClientConnected += OnClientConnected;
         _hostService.ClientDisconnected += OnClientDisconnected;
         _hostService.ErrorOccurred += OnErrorOccurred;
+
+        // Initialize with default Chinese language
+        _selectedLanguage = LocalizationService.Instance.AvailableLanguages[0];
 
         LoadMonitors();
         LoadSettings();
@@ -150,6 +166,25 @@ public partial class MainViewModel : ObservableObject
         _settingsService.UpdatePassword(string.IsNullOrEmpty(value) ? null : value);
     }
 
+    partial void OnSelectedLanguageChanged(LanguageOption value)
+    {
+        if (value != null)
+        {
+            LocalizationService.Instance.ChangeLanguage(value.CultureName);
+            UpdateLocalizedTexts();
+        }
+    }
+
+    private void UpdateLocalizedTexts()
+    {
+        // Update status text based on current state
+        StatusText = IsRunning ? Strings.StatusRunning : Strings.StatusReady;
+        ActiveController = ActiveController == "None" ? Strings.NoneText : ActiveController;
+
+        // Notify client list to update role/permission texts
+        OnPropertyChanged(nameof(ConnectedClientsList));
+    }
+
     [RelayCommand]
     private void ToggleSettings()
     {
@@ -182,7 +217,7 @@ public partial class MainViewModel : ObservableObject
             await _hostService.StartAsync(Port, SelectedMonitorIndex, config);
 
             IsRunning = true;
-            StatusText = "Running";
+            StatusText = Strings.StatusRunning;
             StatusColor = "#34C759";
             ShowStats = true;
 
@@ -191,7 +226,7 @@ public partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to start: {ex.Message}", "Error",
+            MessageBox.Show($"{Strings.FailedToStart}: {ex.Message}", Strings.ErrorTitle,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -206,14 +241,16 @@ public partial class MainViewModel : ObservableObject
             await _hostService.StopAsync();
 
             IsRunning = false;
-            StatusText = "Stopped";
+            StatusText = Strings.StatusStopped;
             StatusColor = "#86868B";
             ShowStats = false;
             ConnectedClients = 0;
+            ConnectedClientsList.Clear();
+            ActiveController = Strings.NoneText;
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Failed to stop: {ex.Message}", "Error",
+            MessageBox.Show($"{Strings.FailedToStop}: {ex.Message}", Strings.ErrorTitle,
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
@@ -222,7 +259,7 @@ public partial class MainViewModel : ObservableObject
     private void CopyDeviceId()
     {
         Clipboard.SetText(DeviceId);
-        StatusText = "Device ID copied!";
+        StatusText = Strings.DeviceIdCopied;
         _ = ResetStatusTextAsync();
     }
 
@@ -243,11 +280,11 @@ public partial class MainViewModel : ObservableObject
         await Task.Delay(2000);
         if (IsRunning)
         {
-            StatusText = "Running";
+            StatusText = Strings.StatusRunning;
         }
         else
         {
-            StatusText = "Ready to start";
+            StatusText = Strings.StatusReady;
         }
     }
 
@@ -256,7 +293,18 @@ public partial class MainViewModel : ObservableObject
         Application.Current.Dispatcher.Invoke(() =>
         {
             ConnectedClients = _hostService.ClientCount;
-            StatusText = $"Client connected: {clientId}";
+
+            // Add to connected clients list
+            var clientInfo = new ClientSessionInfo
+            {
+                ClientId = clientId,
+                Role = SessionRole.Viewer,
+                Permission = ControlPermission.None,
+                ConnectedAt = DateTime.Now
+            };
+            ConnectedClientsList.Add(clientInfo);
+
+            StatusText = $"{Strings.ClientConnected}: {clientId}";
             _ = ResetStatusTextAsync();
         });
     }
@@ -266,9 +314,87 @@ public partial class MainViewModel : ObservableObject
         Application.Current.Dispatcher.Invoke(() =>
         {
             ConnectedClients = _hostService.ClientCount;
-            StatusText = $"Client disconnected";
+
+            // Remove from connected clients list
+            for (int i = ConnectedClientsList.Count - 1; i >= 0; i--)
+            {
+                if (ConnectedClientsList[i].ClientId == clientId)
+                {
+                    ConnectedClientsList.RemoveAt(i);
+                    break;
+                }
+            }
+
+            // Clear active controller if it was this client
+            if (ActiveController == clientId)
+            {
+                ActiveController = Strings.NoneText;
+            }
+
+            StatusText = Strings.ClientDisconnected;
             _ = ResetStatusTextAsync();
         });
+    }
+
+    [RelayCommand]
+    private void GrantControl(string? clientId)
+    {
+        if (string.IsNullOrEmpty(clientId) || !IsRunning) return;
+
+        try
+        {
+            _hostService.GrantControl(clientId, ControlPermission.Input);
+            ActiveController = clientId;
+
+            // Update client in list
+            foreach (var client in ConnectedClientsList)
+            {
+                if (client.ClientId == clientId)
+                {
+                    client.Permission = ControlPermission.Input;
+                    OnPropertyChanged(nameof(ConnectedClientsList));
+                    break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"{Strings.FailedToGrantControl}: {ex.Message}", Strings.ErrorTitle,
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    [RelayCommand]
+    private void RevokeControl(string? clientId)
+    {
+        if (string.IsNullOrEmpty(clientId) || !IsRunning) return;
+
+        try
+        {
+            _hostService.RevokeControl(clientId);
+
+            // Update active controller
+            if (ActiveController == clientId)
+            {
+                ActiveController = Strings.NoneText;
+            }
+
+            // Update client in list
+            foreach (var client in ConnectedClientsList)
+            {
+                if (client.ClientId == clientId)
+                {
+                    client.Permission = ControlPermission.None;
+                    OnPropertyChanged(nameof(ConnectedClientsList));
+                    break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"{Strings.FailedToRevokeControl}: {ex.Message}", Strings.ErrorTitle,
+                MessageBoxButton.OK, MessageBoxImage.Error);
+        }
     }
 
     private void OnErrorOccurred(object? sender, Exception e)
@@ -306,4 +432,29 @@ public partial class MainViewModel : ObservableObject
         await _settingsService.SaveSettingsAsync();
         await _hostService.DisposeAsync();
     }
+}
+
+/// <summary>
+/// Represents a connected client session
+/// </summary>
+public class ClientSessionInfo
+{
+    public string ClientId { get; set; } = string.Empty;
+    public SessionRole Role { get; set; }
+    public ControlPermission Permission { get; set; }
+    public DateTime ConnectedAt { get; set; }
+
+    public string RoleText => Role switch
+    {
+        SessionRole.Controller => Strings.RoleController,
+        SessionRole.Host => Strings.RoleHost,
+        _ => Strings.RoleViewer
+    };
+
+    public string PermissionText => Permission switch
+    {
+        ControlPermission.Full => Strings.PermissionFull,
+        ControlPermission.Input => Strings.PermissionInput,
+        _ => Strings.PermissionNone
+    };
 }

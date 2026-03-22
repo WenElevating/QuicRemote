@@ -2,8 +2,9 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:QuicRemote.Host.ViewModels"
+        xmlns:local="clr-namespace:QuicRemote.Host"
         Style="{StaticResource AppleWindow}"
-        Title="QuicRemote Host"
+        Title="{local:Localize WindowTitle}"
         Height="580" Width="400"
         MinHeight="580" MinWidth="400"
         WindowStartupLocation="CenterScreen">
@@ -38,7 +39,7 @@
                             Style="{StaticResource IconButton}"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
-                            ToolTip="Settings">
+                            ToolTip="{local:Localize SettingsToolTip}">
                         <Path Data="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
                               Fill="{Binding ShowSettings, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#0071E3|#86868B'}"
                               Width="20" Height="20"
@@ -54,7 +55,7 @@
                     <!-- Device ID Card -->
                     <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                         <StackPanel>
-                            <TextBlock Text="Your Device ID"
+                            <TextBlock Text="{local:Localize DeviceIdLabel}"
                                        Style="{StaticResource CaptionText}"
                                        Margin="0,0,0,8"/>
 
@@ -69,7 +70,7 @@
                                         Style="{StaticResource IconButton}"
                                         HorizontalAlignment="Right"
                                         VerticalAlignment="Center"
-                                        ToolTip="Copy Device ID">
+                                        ToolTip="{local:Localize CopyDeviceIdToolTip}">
                                     <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
                                           Fill="#86868B"
                                           Width="18" Height="18"
@@ -83,7 +84,7 @@
                     <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                         <StackPanel>
                             <Grid Margin="0,0,0,16">
-                                <TextBlock Text="Status"
+                                <TextBlock Text="{local:Localize StatusLabel}"
                                            Style="{StaticResource CaptionText}"
                                            VerticalAlignment="Center"/>
 
@@ -111,7 +112,7 @@
                                                FontWeight="Bold"
                                                Foreground="#1D1D1F"
                                                HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Clients"
+                                    <TextBlock Text="{local:Localize ClientsLabel}"
                                                Style="{StaticResource CaptionText}"
                                                HorizontalAlignment="Center"/>
                                 </StackPanel>
@@ -122,7 +123,7 @@
                                                FontWeight="Bold"
                                                Foreground="#1D1D1F"
                                                HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Frame Rate"
+                                    <TextBlock Text="{local:Localize FrameRateLabel}"
                                                Style="{StaticResource CaptionText}"
                                                HorizontalAlignment="Center"/>
                                 </StackPanel>
@@ -133,7 +134,7 @@
                                                FontWeight="Bold"
                                                Foreground="#1D1D1F"
                                                HorizontalAlignment="Center"/>
-                                    <TextBlock Text="Latency"
+                                    <TextBlock Text="{local:Localize LatencyLabel}"
                                                Style="{StaticResource CaptionText}"
                                                HorizontalAlignment="Center"/>
                                 </StackPanel>
@@ -145,7 +146,7 @@
                     <Border Style="{StaticResource Card}" Margin="0,0,0,16"
                             Visibility="{Binding ShowSettings, Converter={StaticResource BoolToVisibilityConverter}}">
                         <StackPanel>
-                            <TextBlock Text="Encoder Settings"
+                            <TextBlock Text="{local:Localize EncoderSettingsTitle}"
                                        FontSize="15"
                                        FontWeight="SemiBold"
                                        Foreground="#1D1D1F"
@@ -153,7 +154,7 @@
 
                             <!-- Codec Selection -->
                             <Grid Margin="0,0,0,12">
-                                <TextBlock Text="Codec"
+                                <TextBlock Text="{local:Localize CodecLabel}"
                                            Style="{StaticResource CaptionText}"
                                            VerticalAlignment="Center"/>
 
@@ -168,7 +169,7 @@
 
                             <!-- Bitrate Setting -->
                             <Grid Margin="0,0,0,12">
-                                <TextBlock Text="Bitrate"
+                                <TextBlock Text="{local:Localize BitrateLabel}"
                                            Style="{StaticResource CaptionText}"
                                            VerticalAlignment="Center"/>
 
@@ -189,7 +190,7 @@
 
                             <!-- Framerate Setting -->
                             <Grid Margin="0,0,0,12">
-                                <TextBlock Text="Frame Rate"
+                                <TextBlock Text="{local:Localize FramerateLabel}"
                                            Style="{StaticResource CaptionText}"
                                            VerticalAlignment="Center"/>
 
@@ -210,26 +211,48 @@
 
                             <!-- Password Setting -->
                             <Grid Margin="0,0,0,12">
-                                <TextBlock Text="Password"
+                                <TextBlock Text="{local:Localize PasswordLabel}"
                                            Style="{StaticResource CaptionText}"
                                            VerticalAlignment="Center"/>
 
                                 <PasswordBox x:Name="PasswordBox"
-                                             Style="{StaticResource InputBox}"
+                                             Style="{StaticResource PasswordBox}"
                                              Width="200"
                                              HorizontalAlignment="Right"
                                              PasswordChanged="OnPasswordChanged"/>
+                            </Grid>
+
+                            <!-- Language Selection -->
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="{local:Localize LanguageLabel}"
+                                           Style="{StaticResource CaptionText}"
+                                           VerticalAlignment="Center"/>
+
+                                <ComboBox SelectedItem="{Binding SelectedLanguage}"
+                                          ItemsSource="{Binding AvailableLanguages}"
+                                          HorizontalAlignment="Right"
+                                          Width="200"
+                                          Padding="12,8"
+                                          BorderThickness="0"
+                                          Background="#F2F2F7">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
                             </Grid>
                         </StackPanel>
                     </Border>
 
                     <!-- Monitor Selection -->
                     <Grid Margin="0,0,0,16">
-                        <TextBlock Text="Monitor"
+                        <TextBlock Text="{local:Localize MonitorLabel}"
                                    Style="{StaticResource CaptionText}"
                                    VerticalAlignment="Center"/>
 
                         <ComboBox SelectedIndex="{Binding SelectedMonitorIndex}"
+                                  ItemsSource="{Binding Monitors}"
                                   HorizontalAlignment="Right"
                                   Width="200"
                                   Padding="12,8"
@@ -250,8 +273,8 @@
                     </Grid>
 
                     <!-- Port Setting -->
-                    <Grid>
-                        <TextBlock Text="Port"
+                    <Grid Margin="0,0,0,16">
+                        <TextBlock Text="{local:Localize PortLabel}"
                                    Style="{StaticResource CaptionText}"
                                    VerticalAlignment="Center"/>
 
@@ -261,6 +284,100 @@
                                  HorizontalAlignment="Right"
                                  TextAlignment="Center"/>
                     </Grid>
+
+                    <!-- Connected Clients (shown when running) -->
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,16"
+                            Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="{local:Localize ConnectedClientsTitle}"
+                                           FontSize="15"
+                                           FontWeight="SemiBold"
+                                           Foreground="#1D1D1F"/>
+
+                                <Border Background="#34C759"
+                                        CornerRadius="4"
+                                        Padding="8,2"
+                                        HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding ConnectedClients, StringFormat={}{0}}"
+                                               FontSize="12"
+                                               FontWeight="Medium"
+                                               Foreground="White"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- Active Controller -->
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="{local:Localize ActiveControllerLabel}"
+                                           Style="{StaticResource CaptionText}"
+                                           VerticalAlignment="Center"/>
+
+                                <TextBlock Text="{Binding ActiveController}"
+                                           FontSize="13"
+                                           Foreground="#1D1D1F"
+                                           HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Client List -->
+                            <ItemsControl ItemsSource="{Binding ConnectedClientsList}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="#F2F2F7"
+                                                CornerRadius="8"
+                                                Padding="12,8"
+                                                Margin="0,0,0,8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0">
+                                                    <TextBlock Text="{Binding ClientId}"
+                                                               FontSize="13"
+                                                               FontWeight="Medium"
+                                                               Foreground="#1D1D1F"/>
+                                                    <TextBlock FontSize="11" Foreground="#86868B">
+                                                        <Run Text="{Binding RoleText}"/>
+                                                        <Run Text=" • "/>
+                                                        <Run Text="{Binding PermissionText}"/>
+                                                    </TextBlock>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                    <!-- Grant Control Button -->
+                                                    <Button Command="{Binding DataContext.GrantControlCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding ClientId}"
+                                                            ToolTip="{local:Localize GrantControlToolTip}"
+                                                            Style="{StaticResource IconButton}"
+                                                            Width="32" Height="32"
+                                                            Margin="4,0">
+                                                        <Path Data="M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9H15V22H13V16H11V22H9V9H3V7H21V9Z"
+                                                              Fill="#0071E3"
+                                                              Width="18" Height="18"
+                                                              Stretch="Uniform"/>
+                                                    </Button>
+
+                                                    <!-- Revoke Control Button -->
+                                                    <Button Command="{Binding DataContext.RevokeControlCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding ClientId}"
+                                                            ToolTip="{local:Localize RevokeControlToolTip}"
+                                                            Style="{StaticResource IconButton}"
+                                                            Width="32" Height="32"
+                                                            Margin="4,0">
+                                                        <Path Data="M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9H15V22H13V16H11V22H9V9H3V7H21V9Z"
+                                                              Fill="#FF3B30"
+                                                              Width="18" Height="18"
+                                                              Stretch="Uniform"/>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
 
@@ -269,13 +386,13 @@
                 <Button Command="{Binding StartCommand}"
                         Height="50"
                         FontSize="16"
-                        Content="Start Sharing">
+                        Content="{local:Localize StartSharing}">
                     <Button.Style>
                         <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding IsRunning}" Value="True">
                                     <Setter Property="Command" Value="{Binding StopCommand}"/>
-                                    <Setter Property="Content" Value="Stop Sharing"/>
+                                    <Setter Property="Content" Value="{local:Localize StopSharing}"/>
                                     <Setter Property="Background" Value="#FF3B30"/>
                                 </DataTrigger>
                             </Style.Triggers>

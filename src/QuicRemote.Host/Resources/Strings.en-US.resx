@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+
+  <!-- Window Title -->
+  <data name="WindowTitle" xml:space="preserve">
+    <value>QuicRemote Host</value>
+  </data>
+
+  <!-- Device ID Section -->
+  <data name="DeviceIdLabel" xml:space="preserve">
+    <value>Your Device ID</value>
+  </data>
+  <data name="CopyDeviceIdToolTip" xml:space="preserve">
+    <value>Copy Device ID</value>
+  </data>
+  <data name="DeviceIdCopied" xml:space="preserve">
+    <value>Device ID copied!</value>
+  </data>
+
+  <!-- Status Section -->
+  <data name="StatusLabel" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="StatusReady" xml:space="preserve">
+    <value>Ready to start</value>
+  </data>
+  <data name="StatusRunning" xml:space="preserve">
+    <value>Running</value>
+  </data>
+  <data name="StatusStopped" xml:space="preserve">
+    <value>Stopped</value>
+  </data>
+  <data name="ClientsLabel" xml:space="preserve">
+    <value>Clients</value>
+  </data>
+  <data name="FrameRateLabel" xml:space="preserve">
+    <value>Frame Rate</value>
+  </data>
+  <data name="LatencyLabel" xml:space="preserve">
+    <value>Latency</value>
+  </data>
+
+  <!-- Settings Section -->
+  <data name="EncoderSettingsTitle" xml:space="preserve">
+    <value>Encoder Settings</value>
+  </data>
+  <data name="CodecLabel" xml:space="preserve">
+    <value>Codec</value>
+  </data>
+  <data name="BitrateLabel" xml:space="preserve">
+    <value>Bitrate</value>
+  </data>
+  <data name="PasswordLabel" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="MonitorLabel" xml:space="preserve">
+    <value>Monitor</value>
+  </data>
+  <data name="PortLabel" xml:space="preserve">
+    <value>Port</value>
+  </data>
+  <data name="SettingsToolTip" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+
+  <!-- Connected Clients Section -->
+  <data name="ConnectedClientsTitle" xml:space="preserve">
+    <value>Connected Clients</value>
+  </data>
+  <data name="ActiveControllerLabel" xml:space="preserve">
+    <value>Active Controller</value>
+  </data>
+  <data name="NoneText" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="GrantControlToolTip" xml:space="preserve">
+    <value>Grant Control</value>
+  </data>
+  <data name="RevokeControlToolTip" xml:space="preserve">
+    <value>Revoke Control</value>
+  </data>
+
+  <!-- Role and Permission Text -->
+  <data name="RoleController" xml:space="preserve">
+    <value>Controller</value>
+  </data>
+  <data name="RoleHost" xml:space="preserve">
+    <value>Host</value>
+  </data>
+  <data name="RoleViewer" xml:space="preserve">
+    <value>Viewer</value>
+  </data>
+  <data name="PermissionFull" xml:space="preserve">
+    <value>Full</value>
+  </data>
+  <data name="PermissionInput" xml:space="preserve">
+    <value>Input</value>
+  </data>
+  <data name="PermissionNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+
+  <!-- Buttons -->
+  <data name="StartSharing" xml:space="preserve">
+    <value>Start Sharing</value>
+  </data>
+  <data name="StopSharing" xml:space="preserve">
+    <value>Stop Sharing</value>
+  </data>
+
+  <!-- Client Events -->
+  <data name="ClientConnected" xml:space="preserve">
+    <value>Client connected</value>
+  </data>
+  <data name="ClientDisconnected" xml:space="preserve">
+    <value>Client disconnected</value>
+  </data>
+
+  <!-- Errors -->
+  <data name="ErrorTitle" xml:space="preserve">
+    <value>Error</value>
+  </data>
+  <data name="FailedToStart" xml:space="preserve">
+    <value>Failed to start</value>
+  </data>
+  <data name="FailedToStop" xml:space="preserve">
+    <value>Failed to stop</value>
+  </data>
+  <data name="FailedToGrantControl" xml:space="preserve">
+    <value>Failed to grant control</value>
+  </data>
+  <data name="FailedToRevokeControl" xml:space="preserve">
+    <value>Failed to revoke control</value>
+  </data>
+
+  <!-- Language -->
+  <data name="LanguageLabel" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="LanguageChinese" xml:space="preserve">
+    <value>简体中文</value>
+  </data>
+  <data name="LanguageEnglish" xml:space="preserve">
+    <value>English</value>
+  </data>
+</root>
