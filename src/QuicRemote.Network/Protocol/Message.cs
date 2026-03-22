@@ -19,21 +19,37 @@ public enum MessageFlags : byte
 
 public enum MessageType : byte
 {
+    // Session control (0x01-0x0F)
     SessionRequest = 0x01,
     SessionAccept = 0x02,
     SessionReject = 0x03,
     SessionEnd = 0x04,
     Heartbeat = 0x05,
+    RoleChange = 0x06,
+    ControlRequest = 0x07,
+    ControlResponse = 0x08,
+    PermissionGrant = 0x09,
+    PermissionRevoke = 0x0A,
+    DisplayConfig = 0x0B,
+
+    // Media control (0x10-0x1F)
     VideoConfig = 0x10,
     VideoFrame = 0x11,
     AudioConfig = 0x12,
     AudioData = 0x13,
+    KeyframeRequest = 0x14,
+
+    // Input events (0x20-0x2F)
     MouseEvent = 0x20,
     KeyboardEvent = 0x21,
     ClipboardSync = 0x22,
+
+    // File transfer (0x30-0x3F)
     FileTransferRequest = 0x30,
     FileData = 0x31,
     FileAck = 0x32,
+
+    // Chat (0x40-0x4F)
     ChatMessage = 0x40
 }
 

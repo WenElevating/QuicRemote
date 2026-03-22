@@ -56,6 +56,13 @@ public static class MessageSerializer
             MessageType.Heartbeat => HeartbeatMessage.Deserialize(payload),
             MessageType.MouseEvent => MouseEventMessage.Deserialize(payload),
             MessageType.KeyboardEvent => KeyboardEventMessage.Deserialize(payload),
+            MessageType.RoleChange => RoleChangeMessage.Deserialize(payload),
+            MessageType.ControlRequest => ControlRequestMessage.Deserialize(payload),
+            MessageType.ControlResponse => ControlResponseMessage.Deserialize(payload),
+            MessageType.PermissionGrant => PermissionGrantMessage.Deserialize(payload),
+            MessageType.PermissionRevoke => PermissionRevokeMessage.Deserialize(payload),
+            MessageType.DisplayConfig => DisplayConfigMessage.Deserialize(payload),
+            MessageType.KeyframeRequest => KeyframeRequestMessage.Deserialize(payload),
             _ => null
         };
     }
