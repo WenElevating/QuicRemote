@@ -161,18 +161,18 @@ QuicRemote/
 **文件:** `src/QuicRemote.Core/Control/`
 
 **任务:**
-- [ ] 3.1 创建 `RemoteControlService` 统一输入管理
-- [ ] 3.2 创建 `CoordinateMapper` DPI/多显示器坐标映射
-- [ ] 3.3 实现显示器配置交换 (Host 发送显示器信息)
-- [ ] 3.4 实现客户端坐标到远程坐标的映射
-- [ ] 3.5 集成现有 `InputWrapper` 进行输入注入
-- [ ] 3.6 实现输入权限校验 (检查 ControlPermission)
+- [x] 3.1 创建 `RemoteControlService` 统一输入管理
+- [x] 3.2 创建 `CoordinateMapper` DPI/多显示器坐标映射
+- [x] 3.3 实现显示器配置交换 (Host 发送显示器信息)
+- [x] 3.4 实现客户端坐标到远程坐标的映射
+- [x] 3.5 集成现有 `InputWrapper` 进行输入注入
+- [x] 3.6 实现输入权限校验 (检查 ControlPermission)
 
 **验收标准:**
-- 输入事件正确注入
-- DPI 缩放坐标正确
-- 多显示器坐标映射正确
-- 权限校验有效
+- [x] 输入事件正确注入
+- [x] DPI 缩放坐标正确
+- [x] 多显示器坐标映射正确
+- [x] 权限校验有效 (18 tests)
 
 ---
 
