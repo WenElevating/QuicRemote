@@ -181,17 +181,17 @@ QuicRemote/
 **文件:** `src/QuicRemote.Host/Services/`, `src/QuicRemote.Client/Services/`
 
 **任务:**
-- [ ] 4.1 在 `HostService` 中集成 `SessionManager`
-- [ ] 4.2 在 `HostService` 中集成 `RemoteControlService`
-- [ ] 4.3 在 `ClientService` 中集成 `SessionManager`
-- [ ] 4.4 更新消息处理逻辑使用新协议
-- [ ] 4.5 添加会话状态到服务层
-- [ ] 4.6 实现控制权请求/响应流程
+- [x] 4.1 在 `HostService` 中集成 `SessionManager`
+- [x] 4.2 在 `HostService` 中集成 `RemoteControlService`
+- [x] 4.3 在 `ClientService` 中集成权限跟踪
+- [x] 4.4 更新消息处理逻辑使用新协议
+- [x] 4.5 添加会话状态到服务层
+- [x] 4.6 实现控制权请求/响应流程 (GrantControl/RevokeControl API)
 
 **验收标准:**
-- 服务层正确使用 SessionManager
-- 协议消息正确处理
-- 现有功能不受影响
+- [x] 服务层正确使用 SessionManager
+- [x] 协议消息正确处理
+- [x] 现有功能不受影响 (176 tests passing)
 
 ---
 

@@ -6,6 +6,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
+using QuicRemote.Core.Control;
 using QuicRemote.Core.Media;
 using QuicRemote.Core.Session;
 using QuicRemote.Network.Quic;
@@ -18,9 +19,11 @@ namespace QuicRemote.Host.Services;
 public partial class HostService : ObservableObject, IAsyncDisposable
 {
     private readonly CaptureWrapper _capture = new();
-    private readonly InputWrapper _input = new();
+    private readonly SessionManager _sessionManager = new();
+    private readonly RemoteControlService _remoteControl;
     private readonly ConcurrentDictionary<string, QuicConnection> _clients = new();
     private readonly ConcurrentDictionary<string, QuicStream> _streams = new();
+    private readonly ConcurrentDictionary<string, Guid> _clientSessions = new();
     private readonly object _stateLock = new();
 
     private EncoderWrapper? _encoder;
@@ -29,6 +32,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
     private Task? _captureTask;
     private bool _disposed;
     private EncoderConfig _encoderConfig = new();
+    private Guid _hostSessionId;
 
     [ObservableProperty]
     private bool _isRunning;
@@ -52,6 +56,16 @@ public partial class HostService : ObservableObject, IAsyncDisposable
     /// Gets available monitors
     /// </summary>
     public IReadOnlyList<MonitorInfo> Monitors => CaptureWrapper.GetAllMonitors();
+
+    /// <summary>
+    /// Gets the session manager for client management
+    /// </summary>
+    public SessionManager SessionManager => _sessionManager;
+
+    public HostService()
+    {
+        _remoteControl = new RemoteControlService(_sessionManager);
+    }
 
     /// <summary>
     /// Event raised when a client connects
@@ -94,8 +108,11 @@ public partial class HostService : ObservableObject, IAsyncDisposable
                     (NativeMethods.QR_Result)initResult);
             }
 
-            // Initialize input
-            _input.Initialize();
+            // Create host session
+            _hostSessionId = _sessionManager.CreateSession("host").SessionId;
+
+            // Initialize remote control service
+            _remoteControl.Initialize();
 
             // Start capture
             _capture.StartCapture(monitorIndex);
@@ -200,7 +217,9 @@ public partial class HostService : ObservableObject, IAsyncDisposable
     /// <summary>
     /// Injects an input event from remote client
     /// </summary>
-    public void InjectInput(InputEvent inputEvent)
+    /// <param name="inputEvent">The input event to inject</param>
+    /// <param name="clientId">Optional client ID for permission check</param>
+    public void InjectInput(InputEvent inputEvent, string? clientId = null)
     {
         if (!IsRunning)
         {
@@ -209,37 +228,50 @@ public partial class HostService : ObservableObject, IAsyncDisposable
 
         try
         {
-            switch (inputEvent.Type)
+            Guid? sessionId = _hostSessionId;
+            if (clientId != null && _clientSessions.TryGetValue(clientId, out var clientSessionId))
             {
-                case InputEventType.MouseMove:
-                    _input.MouseMove(inputEvent.X, inputEvent.Y, inputEvent.Absolute);
-                    break;
-
-                case InputEventType.MouseDown:
-                    _input.MouseDown(inputEvent.MouseButton);
-                    break;
-
-                case InputEventType.MouseUp:
-                    _input.MouseUp(inputEvent.MouseButton);
-                    break;
-
-                case InputEventType.MouseWheel:
-                    _input.MouseWheel(inputEvent.WheelDelta, inputEvent.HorizontalScroll);
-                    break;
-
-                case InputEventType.KeyDown:
-                    _input.KeyDown(inputEvent.KeyCode);
-                    break;
-
-                case InputEventType.KeyUp:
-                    _input.KeyUp(inputEvent.KeyCode);
-                    break;
+                sessionId = clientSessionId;
             }
+
+            _remoteControl.ProcessInput(clientId ?? "unknown", inputEvent, sessionId);
         }
         catch (Exception ex)
         {
             ErrorOccurred?.Invoke(this, ex);
         }
+    }
+
+    /// <summary>
+    /// Grants control permission to a client
+    /// </summary>
+    public bool GrantControl(string clientId, ControlPermission permission)
+    {
+        if (_clientSessions.TryGetValue(clientId, out var sessionId))
+        {
+            return _sessionManager.GrantPermission(sessionId, clientId, permission);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Revokes control permission from a client
+    /// </summary>
+    public bool RevokeControl(string clientId)
+    {
+        if (_clientSessions.TryGetValue(clientId, out var sessionId))
+        {
+            return _sessionManager.RevokePermission(sessionId, clientId);
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Gets the client with active control
+    /// </summary>
+    public ClientInfo? GetActiveController()
+    {
+        return _sessionManager.GetActiveController(_hostSessionId);
     }
 
     private async Task AcceptClientsAsync(CancellationToken cancellationToken)
@@ -274,6 +306,10 @@ public partial class HostService : ObservableObject, IAsyncDisposable
     {
         ClientConnected?.Invoke(this, clientId);
 
+        // Add client to session
+        _sessionManager.AddClient(_hostSessionId, clientId, SessionRole.Viewer);
+        _clientSessions[clientId] = _hostSessionId;
+
         QuicStream? stream = null;
         string? streamId = null;
         try
@@ -286,7 +322,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
                 _streams.TryAdd(streamId, stream);
 
                 // Start receiving input events
-                await ReceiveInputAsync(stream, cancellationToken);
+                await ReceiveInputAsync(stream, clientId, cancellationToken);
             }
         }
         catch (OperationCanceledException)
@@ -299,6 +335,10 @@ public partial class HostService : ObservableObject, IAsyncDisposable
         }
         finally
         {
+            // Remove client from session
+            _sessionManager.RemoveClient(_hostSessionId, clientId);
+            _clientSessions.TryRemove(clientId, out _);
+
             if (stream != null && streamId != null)
             {
                 _streams.TryRemove(streamId, out _);
@@ -326,7 +366,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
         }
     }
 
-    private async Task ReceiveInputAsync(QuicStream stream, CancellationToken cancellationToken)
+    private async Task ReceiveInputAsync(QuicStream stream, string clientId, CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -341,7 +381,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
                 // Parse input events from buffer
                 foreach (var segment in result.Buffer)
                 {
-                    ParseAndInjectInput(segment.Span);
+                    ParseAndInjectInput(segment.Span, clientId);
                 }
 
                 stream.AdvanceTo(result.Buffer.End);
@@ -357,7 +397,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
         }
     }
 
-    private void ParseAndInjectInput(ReadOnlySpan<byte> data)
+    private void ParseAndInjectInput(ReadOnlySpan<byte> data, string clientId)
     {
         if (data.Length < 2)
         {
@@ -378,7 +418,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
                         Y = BitConverter.ToInt32(data.Slice(5, 4)),
                         Absolute = data[9] != 0
                     };
-                    InjectInput(inputEvent);
+                    InjectInput(inputEvent, clientId);
                 }
                 break;
 
@@ -391,7 +431,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
                         Type = type,
                         MouseButton = (MouseButton)data[1]
                     };
-                    InjectInput(inputEvent);
+                    InjectInput(inputEvent, clientId);
                 }
                 break;
 
@@ -404,7 +444,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
                         WheelDelta = BitConverter.ToInt32(data.Slice(1, 4)),
                         HorizontalScroll = data[5] != 0
                     };
-                    InjectInput(inputEvent);
+                    InjectInput(inputEvent, clientId);
                 }
                 break;
 
@@ -417,7 +457,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
                         Type = type,
                         KeyCode = (KeyCode)BitConverter.ToUInt16(data.Slice(1, 2))
                     };
-                    InjectInput(inputEvent);
+                    InjectInput(inputEvent, clientId);
                 }
                 break;
         }
@@ -530,6 +570,8 @@ public partial class HostService : ObservableObject, IAsyncDisposable
 
         await StopAsync();
         _capture.Dispose();
+        _remoteControl.Dispose();
+        _sessionManager.Dispose();
         _cts?.Dispose();
 
         _disposed = true;

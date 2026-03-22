@@ -4,6 +4,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
+using QuicRemote.Core.Control;
 using QuicRemote.Core.Media;
 using QuicRemote.Core.Session;
 using QuicRemote.Network.Quic;
@@ -18,10 +19,15 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
     private QuicConnection? _connection;
     private QuicStream? _stream;
     private DecoderWrapper? _decoder;
+    private readonly CoordinateMapper _coordinateMapper = new();
     private CancellationTokenSource? _cts;
     private Task? _receiveTask;
     private bool _disposed;
     private readonly object _stateLock = new();
+
+    // Session state
+    private ControlPermission _currentPermission = ControlPermission.None;
+    private SessionRole _currentRole = SessionRole.Viewer;
 
     // Reconnection support
     private string? _lastHost;
@@ -63,6 +69,12 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
 
     [ObservableProperty]
     private int _reconnectAttemptCount;
+
+    [ObservableProperty]
+    private bool _hasControlPermission;
+
+    [ObservableProperty]
+    private string _currentPermissionText = "None";
 
     /// <summary>
     /// Event raised when a frame is decoded and ready for display
@@ -106,6 +118,26 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
         get => _maxReconnectAttempts;
         set => _maxReconnectAttempts = Math.Max(1, value);
     }
+
+    /// <summary>
+    /// Gets the current control permission
+    /// </summary>
+    public ControlPermission CurrentPermission => _currentPermission;
+
+    /// <summary>
+    /// Gets the current session role
+    /// </summary>
+    public SessionRole CurrentRole => _currentRole;
+
+    /// <summary>
+    /// Gets the coordinate mapper for display configuration
+    /// </summary>
+    public CoordinateMapper CoordinateMapper => _coordinateMapper;
+
+    /// <summary>
+    /// Event raised when control permission changes
+    /// </summary>
+    public event EventHandler<ControlPermission>? PermissionChanged;
 
     /// <summary>
     /// Connects to a remote host
@@ -392,8 +424,54 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
             stream = _stream;
         }
 
+        // Check if we have control permission
+        if (_currentPermission == ControlPermission.None)
+        {
+            return; // Silently ignore input without permission
+        }
+
         var buffer = SerializeInputEvent(inputEvent);
         await stream.WriteAsync(buffer, cancellationToken);
+    }
+
+    /// <summary>
+    /// Updates the control permission (called when receiving permission grant/revoke messages)
+    /// </summary>
+    public void UpdatePermission(ControlPermission permission)
+    {
+        _currentPermission = permission;
+        HasControlPermission = permission != ControlPermission.None;
+        CurrentPermissionText = permission switch
+        {
+            ControlPermission.Full => "Full",
+            ControlPermission.Input => "Input",
+            _ => "None"
+        };
+        PermissionChanged?.Invoke(this, permission);
+    }
+
+    /// <summary>
+    /// Updates the session role
+    /// </summary>
+    public void UpdateRole(SessionRole role)
+    {
+        _currentRole = role;
+    }
+
+    /// <summary>
+    /// Sets the display dimensions for coordinate mapping
+    /// </summary>
+    public void SetDisplayDimensions(int width, int height)
+    {
+        _coordinateMapper.SetSourceDimensions(width, height);
+    }
+
+    /// <summary>
+    /// Maps client coordinates to remote coordinates
+    /// </summary>
+    public (int RemoteX, int RemoteY) MapToRemote(int clientX, int clientY)
+    {
+        return _coordinateMapper.MapToHost(clientX, clientY);
     }
 
     private static byte[] SerializeInputEvent(InputEvent inputEvent)
