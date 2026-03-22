@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows;
 using Hardcodet.Wpf.TaskbarNotification;
 
@@ -13,6 +14,13 @@ public class TrayIconService : IDisposable
     private TaskbarIcon? _notifyIcon;
     private bool _disposed;
     private System.Windows.Controls.MenuItem? _autoStartItem;
+
+    // Cached icon to avoid GDI handle leaks
+    private static Icon? _cachedIcon;
+    private static IntPtr _cachedIconHandle;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 
     public event EventHandler? ShowWindowRequested;
     public event EventHandler? ExitRequested;
@@ -133,6 +141,12 @@ public class TrayIconService : IDisposable
 
     private static Icon CreateIcon()
     {
+        // Return cached icon if available
+        if (_cachedIcon != null)
+        {
+            return _cachedIcon;
+        }
+
         // Create a simple icon programmatically
         using var bitmap = new Bitmap(32, 32);
         using var g = Graphics.FromImage(bitmap);
@@ -152,9 +166,11 @@ public class TrayIconService : IDisposable
             (32 - textSize.Width) / 2,
             (32 - textSize.Height) / 2 - 1);
 
-        // Convert to icon
-        var hIcon = bitmap.GetHicon();
-        return Icon.FromHandle(hIcon);
+        // Convert to icon and cache
+        _cachedIconHandle = bitmap.GetHicon();
+        _cachedIcon = Icon.FromHandle(_cachedIconHandle);
+
+        return _cachedIcon;
     }
 
     public void Dispose()
@@ -164,5 +180,18 @@ public class TrayIconService : IDisposable
 
         _notifyIcon?.Dispose();
         _notifyIcon = null;
+    }
+
+    /// <summary>
+    /// Cleanup static resources - call when application exits
+    /// </summary>
+    public static void CleanupStaticResources()
+    {
+        if (_cachedIconHandle != IntPtr.Zero)
+        {
+            DestroyIcon(_cachedIconHandle);
+            _cachedIconHandle = IntPtr.Zero;
+            _cachedIcon = null;
+        }
     }
 }

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,8 +19,9 @@ public partial class HostService : ObservableObject, IAsyncDisposable
 {
     private readonly CaptureWrapper _capture = new();
     private readonly InputWrapper _input = new();
-    private readonly List<QuicConnection> _clients = new();
-    private readonly List<QuicStream> _streams = new();
+    private readonly ConcurrentDictionary<string, QuicConnection> _clients = new();
+    private readonly ConcurrentDictionary<string, QuicStream> _streams = new();
+    private readonly object _stateLock = new();
 
     private EncoderWrapper? _encoder;
     private QuicListener? _listener;
@@ -146,16 +149,32 @@ public partial class HostService : ObservableObject, IAsyncDisposable
         // Stop capture
         _capture.StopCapture();
 
-        // Close all streams and clients
-        foreach (var stream in _streams)
+        // Close all streams and clients with proper error handling
+        var streamsSnapshot = _streams.Values.ToArray();
+        foreach (var stream in streamsSnapshot)
         {
-            await stream.DisposeAsync();
+            try
+            {
+                await stream.DisposeAsync();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
         }
         _streams.Clear();
 
-        foreach (var client in _clients)
+        var clientsSnapshot = _clients.Values.ToArray();
+        foreach (var client in clientsSnapshot)
         {
-            await client.DisposeAsync();
+            try
+            {
+                await client.DisposeAsync();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
         }
         _clients.Clear();
         ClientCount = 0;
@@ -232,11 +251,12 @@ public partial class HostService : ObservableObject, IAsyncDisposable
                 var connection = await _listener.AcceptConnectionAsync(cancellationToken);
                 if (connection != null)
                 {
-                    _clients.Add(connection);
+                    var clientId = connection.RemoteEndPoint?.ToString() ?? Guid.NewGuid().ToString();
+                    _clients.TryAdd(clientId, connection);
                     ClientCount = _clients.Count;
 
                     // Handle client in background
-                    _ = HandleClientAsync(connection, cancellationToken);
+                    _ = HandleClientAsync(connection, clientId, cancellationToken);
                 }
             }
             catch (OperationCanceledException)
@@ -250,19 +270,20 @@ public partial class HostService : ObservableObject, IAsyncDisposable
         }
     }
 
-    private async Task HandleClientAsync(QuicConnection connection, CancellationToken cancellationToken)
+    private async Task HandleClientAsync(QuicConnection connection, string clientId, CancellationToken cancellationToken)
     {
-        var clientId = connection.RemoteEndPoint?.ToString() ?? "Unknown";
         ClientConnected?.Invoke(this, clientId);
 
         QuicStream? stream = null;
+        string? streamId = null;
         try
         {
             // Accept bidirectional stream for data transfer
             stream = await connection.AcceptStreamAsync(cancellationToken);
             if (stream != null)
             {
-                _streams.Add(stream);
+                streamId = $"{clientId}_stream";
+                _streams.TryAdd(streamId, stream);
 
                 // Start receiving input events
                 await ReceiveInputAsync(stream, cancellationToken);
@@ -278,16 +299,30 @@ public partial class HostService : ObservableObject, IAsyncDisposable
         }
         finally
         {
-            if (stream != null)
+            if (stream != null && streamId != null)
             {
-                _streams.Remove(stream);
-                await stream.DisposeAsync();
+                _streams.TryRemove(streamId, out _);
+                try
+                {
+                    await stream.DisposeAsync();
+                }
+                catch
+                {
+                    // Ignore disposal errors
+                }
             }
 
-            _clients.Remove(connection);
+            _clients.TryRemove(clientId, out _);
             ClientCount = _clients.Count;
             ClientDisconnected?.Invoke(this, clientId);
-            await connection.DisposeAsync();
+            try
+            {
+                await connection.DisposeAsync();
+            }
+            catch
+            {
+                // Ignore disposal errors
+            }
         }
     }
 
@@ -443,7 +478,7 @@ public partial class HostService : ObservableObject, IAsyncDisposable
 
     private async Task BroadcastFrameAsync(Packet packet, CancellationToken cancellationToken)
     {
-        if (_streams.Count == 0)
+        if (_streams.IsEmpty)
         {
             return;
         }
@@ -459,12 +494,12 @@ public partial class HostService : ObservableObject, IAsyncDisposable
         // Copy packet data
         byte[]? frameData = packet.GetDataCopy();
 
+        // Take snapshot to avoid modification during iteration
+        var streamsSnapshot = _streams.Values.ToArray();
+
         // Send to all streams
-        var tasks = new List<Task>();
-        foreach (var stream in _streams)
-        {
-            tasks.Add(SendFrameToStreamAsync(stream, header, frameData, cancellationToken));
-        }
+        var tasks = streamsSnapshot.Select(stream =>
+            SendFrameToStreamAsync(stream, header, frameData, cancellationToken));
 
         await Task.WhenAll(tasks);
     }
