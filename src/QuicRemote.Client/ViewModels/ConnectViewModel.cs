@@ -71,6 +71,8 @@ public partial class ConnectViewModel : ObservableObject
     public string[] ScaleModeOptions { get; } = new[] { "AspectFit", "Fill", "Stretch" };
     public string[] CodecOptions { get; } = new[] { "H264", "H265" };
 
+    public ObservableCollection<ShortcutKeyDisplay> ShortcutKeys { get; } = new();
+
     public event EventHandler? Connected;
     public event EventHandler<Exception>? ConnectionFailed;
     public event EventHandler? ToggleFullscreenRequested;
@@ -91,6 +93,38 @@ public partial class ConnectViewModel : ObservableObject
         var settings = _settingsService.Settings;
         SelectedScaleMode = settings.ScaleMode;
         SelectedCodec = settings.Codec;
+
+        // Initialize default shortcuts if needed
+        _settingsService.InitializeDefaultShortcuts();
+
+        // Load shortcut keys for display
+        LoadShortcutKeys();
+    }
+
+    private void LoadShortcutKeys()
+    {
+        ShortcutKeys.Clear();
+        foreach (var shortcut in _settingsService.Settings.ShortcutKeys)
+        {
+            ShortcutKeys.Add(new ShortcutKeyDisplay(
+                shortcut.Action,
+                GetActionDisplayName(shortcut.Action),
+                shortcut.DisplayText
+            ));
+        }
+    }
+
+    private static string GetActionDisplayName(string action)
+    {
+        return action switch
+        {
+            "ToggleFullscreen" => "Toggle Fullscreen",
+            "ExitFullscreen" => "Exit Fullscreen",
+            "Disconnect" => "Disconnect",
+            "ToggleStats" => "Toggle Stats",
+            "SendCtrlAltDel" => "Send Ctrl+Alt+Del",
+            _ => action
+        };
     }
 
     private void LoadConnectionHistory()
@@ -289,5 +323,30 @@ public partial class ConnectViewModel : ObservableObject
 
         await _settingsService.SaveSettingsAsync();
         await _clientService.DisposeAsync();
+    }
+
+    /// <summary>
+    /// Gets the shortcut key configuration for a specific action
+    /// </summary>
+    public ShortcutKeyConfig? GetShortcutConfig(string action)
+    {
+        return _settingsService.Settings.GetShortcut(action);
+    }
+}
+
+/// <summary>
+/// Display model for shortcut keys in the UI
+/// </summary>
+public class ShortcutKeyDisplay
+{
+    public string Action { get; }
+    public string DisplayName { get; }
+    public string KeyDisplay { get; }
+
+    public ShortcutKeyDisplay(string action, string displayName, string keyDisplay)
+    {
+        Action = action;
+        DisplayName = displayName;
+        KeyDisplay = keyDisplay;
     }
 }

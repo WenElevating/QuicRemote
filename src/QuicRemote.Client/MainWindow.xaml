@@ -227,7 +227,7 @@
                             </Grid>
 
                             <!-- Codec -->
-                            <Grid>
+                            <Grid Margin="0,0,0,16">
                                 <TextBlock Text="Decoder"
                                            Style="{StaticResource CaptionText}"
                                            VerticalAlignment="Center"/>
@@ -240,6 +240,35 @@
                                           BorderThickness="0"
                                           Background="#F2F2F7"/>
                             </Grid>
+
+                            <!-- Shortcut Keys Section -->
+                            <TextBlock Text="Keyboard Shortcuts"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Foreground="#1D1D1F"
+                                       Margin="0,8,0,12"/>
+
+                            <ItemsControl ItemsSource="{Binding ShortcutKeys}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding DisplayName}"
+                                                       Style="{StaticResource CaptionText}"
+                                                       VerticalAlignment="Center"/>
+
+                                            <Border Background="#F2F2F7"
+                                                    CornerRadius="6"
+                                                    Padding="12,6"
+                                                    HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding KeyDisplay}"
+                                                           FontSize="13"
+                                                           FontWeight="Medium"
+                                                           Foreground="#1D1D1F"/>
+                                            </Border>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
                         </StackPanel>
                     </Border>
 

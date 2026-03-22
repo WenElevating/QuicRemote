@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
+using QuicRemote.Client.Services;
 using QuicRemote.Client.ViewModels;
 using QuicRemote.Core.Media;
 using QuicRemote.Core.Session;
@@ -22,6 +23,7 @@ public partial class MainWindow : Window
     private double _previousWidth;
     private double _previousHeight;
     private bool _isFullscreen;
+    private SettingsService? _settingsService;
 
     public MainWindow()
     {
@@ -61,6 +63,10 @@ public partial class MainWindow : Window
             clientService.FrameDecoded += OnFrameDecoded;
         }
 
+        // Initialize settings service for shortcuts
+        _settingsService = new SettingsService();
+        _settingsService.InitializeDefaultShortcuts();
+
         // Handle mouse events on remote image
         RemoteImage.MouseMove += OnRemoteMouseMove;
         RemoteImage.MouseDown += OnRemoteMouseDown;
@@ -71,6 +77,60 @@ public partial class MainWindow : Window
         RemoteImage.KeyDown += OnRemoteKeyDown;
         RemoteImage.KeyUp += OnRemoteKeyUp;
         RemoteImage.Focusable = true;
+
+        // Update InputBindings with configured shortcuts
+        UpdateInputBindings();
+    }
+
+    private void UpdateInputBindings()
+    {
+        if (_settingsService == null) return;
+
+        InputBindings.Clear();
+
+        // Add fullscreen toggle shortcut
+        var fullscreenShortcut = _settingsService.Settings.GetShortcut("ToggleFullscreen");
+        if (fullscreenShortcut != null && TryParseKey(fullscreenShortcut.Key, out var fullscreenKey))
+        {
+            var gesture = CreateKeyGesture(fullscreenKey, fullscreenShortcut.Ctrl, fullscreenShortcut.Alt, fullscreenShortcut.Shift);
+            if (gesture != null && DataContext is ConnectViewModel vm)
+            {
+                InputBindings.Add(new KeyBinding(vm.ToggleFullscreenCommand, gesture));
+            }
+        }
+
+        // Add exit fullscreen shortcut
+        var exitFullscreenShortcut = _settingsService.Settings.GetShortcut("ExitFullscreen");
+        if (exitFullscreenShortcut != null && TryParseKey(exitFullscreenShortcut.Key, out var exitKey))
+        {
+            var gesture = CreateKeyGesture(exitKey, exitFullscreenShortcut.Ctrl, exitFullscreenShortcut.Alt, exitFullscreenShortcut.Shift);
+            if (gesture != null && DataContext is ConnectViewModel vm)
+            {
+                InputBindings.Add(new KeyBinding(vm.ExitFullscreenCommand, gesture));
+            }
+        }
+    }
+
+    private static bool TryParseKey(string keyName, out Key key)
+    {
+        return Enum.TryParse(keyName, out key);
+    }
+
+    private static KeyGesture? CreateKeyGesture(Key key, bool ctrl, bool alt, bool shift)
+    {
+        var modifiers = ModifierKeys.None;
+        if (ctrl) modifiers |= ModifierKeys.Control;
+        if (alt) modifiers |= ModifierKeys.Alt;
+        if (shift) modifiers |= ModifierKeys.Shift;
+
+        try
+        {
+            return new KeyGesture(key, modifiers);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private void OnToggleFullscreenRequested(object? sender, EventArgs e)
@@ -266,8 +326,11 @@ public partial class MainWindow : Window
     {
         if (DataContext is not ConnectViewModel vm || !vm.IsConnected) return;
 
-        // Don't send F11 (fullscreen toggle) or Escape (exit fullscreen)
-        if (e.Key == Key.F11 || e.Key == Key.Escape) return;
+        // Check if this key matches any configured shortcut
+        if (IsShortcutKey(e.Key, Keyboard.Modifiers))
+        {
+            return; // Let the shortcut be handled by InputBindings
+        }
 
         e.Handled = true;
 
@@ -286,8 +349,11 @@ public partial class MainWindow : Window
     {
         if (DataContext is not ConnectViewModel vm || !vm.IsConnected) return;
 
-        // Don't send F11 (fullscreen toggle) or Escape (exit fullscreen)
-        if (e.Key == Key.F11 || e.Key == Key.Escape) return;
+        // Check if this key matches any configured shortcut
+        if (IsShortcutKey(e.Key, Keyboard.Modifiers))
+        {
+            return;
+        }
 
         e.Handled = true;
 
@@ -300,6 +366,29 @@ public partial class MainWindow : Window
                 KeyCode = keyCode
             });
         }
+    }
+
+    private bool IsShortcutKey(Key key, ModifierKeys modifiers)
+    {
+        if (_settingsService == null) return false;
+
+        foreach (var shortcut in _settingsService.Settings.ShortcutKeys)
+        {
+            if (!TryParseKey(shortcut.Key, out var shortcutKey)) continue;
+            if (key != shortcutKey) continue;
+
+            var expectedModifiers = ModifierKeys.None;
+            if (shortcut.Ctrl) expectedModifiers |= ModifierKeys.Control;
+            if (shortcut.Alt) expectedModifiers |= ModifierKeys.Alt;
+            if (shortcut.Shift) expectedModifiers |= ModifierKeys.Shift;
+
+            if (modifiers == expectedModifiers)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static KeyCode ConvertKey(Key key)

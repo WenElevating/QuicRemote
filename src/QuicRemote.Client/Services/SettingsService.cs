@@ -18,6 +18,31 @@ public class ConnectionHistoryEntry
 }
 
 /// <summary>
+/// Shortcut key configuration
+/// </summary>
+public class ShortcutKeyConfig
+{
+    public string Action { get; set; } = string.Empty;
+    public string Key { get; set; } = string.Empty;
+    public bool Ctrl { get; set; }
+    public bool Alt { get; set; }
+    public bool Shift { get; set; }
+
+    public string DisplayText
+    {
+        get
+        {
+            var parts = new List<string>();
+            if (Ctrl) parts.Add("Ctrl");
+            if (Alt) parts.Add("Alt");
+            if (Shift) parts.Add("Shift");
+            if (!string.IsNullOrEmpty(Key)) parts.Add(Key);
+            return string.Join(" + ", parts);
+        }
+    }
+}
+
+/// <summary>
 /// Application settings for the Client
 /// </summary>
 public class ClientSettings
@@ -28,6 +53,30 @@ public class ClientSettings
     public bool ShowStats { get; set; } = true;
     public List<ConnectionHistoryEntry> ConnectionHistory { get; set; } = new();
     public int MaxHistoryEntries { get; set; } = 10;
+    public List<ShortcutKeyConfig> ShortcutKeys { get; set; } = new();
+
+    /// <summary>
+    /// Gets the default shortcut key configurations
+    /// </summary>
+    public static List<ShortcutKeyConfig> GetDefaultShortcuts()
+    {
+        return new List<ShortcutKeyConfig>
+        {
+            new() { Action = "ToggleFullscreen", Key = "F11", Ctrl = false, Alt = false, Shift = false },
+            new() { Action = "ExitFullscreen", Key = "Escape", Ctrl = false, Alt = false, Shift = false },
+            new() { Action = "Disconnect", Key = "F12", Ctrl = false, Alt = false, Shift = false },
+            new() { Action = "ToggleStats", Key = "S", Ctrl = true, Alt = false, Shift = false },
+            new() { Action = "SendCtrlAltDel", Key = "Delete", Ctrl = true, Alt = true, Shift = false },
+        };
+    }
+
+    /// <summary>
+    /// Gets a shortcut configuration by action name
+    /// </summary>
+    public ShortcutKeyConfig? GetShortcut(string action)
+    {
+        return ShortcutKeys.FirstOrDefault(s => s.Action == action);
+    }
 }
 
 /// <summary>
@@ -145,6 +194,45 @@ public class SettingsService
         if (Settings.ShowStats != showStats)
         {
             Settings.ShowStats = showStats;
+            MarkDirty();
+        }
+    }
+
+    public void UpdateShortcutKey(string action, string key, bool ctrl, bool alt, bool shift)
+    {
+        var existing = Settings.GetShortcut(action);
+        if (existing != null)
+        {
+            existing.Key = key;
+            existing.Ctrl = ctrl;
+            existing.Alt = alt;
+            existing.Shift = shift;
+        }
+        else
+        {
+            Settings.ShortcutKeys.Add(new ShortcutKeyConfig
+            {
+                Action = action,
+                Key = key,
+                Ctrl = ctrl,
+                Alt = alt,
+                Shift = shift
+            });
+        }
+        MarkDirty();
+    }
+
+    public void ResetShortcutKeysToDefault()
+    {
+        Settings.ShortcutKeys = ClientSettings.GetDefaultShortcuts();
+        MarkDirty();
+    }
+
+    public void InitializeDefaultShortcuts()
+    {
+        if (Settings.ShortcutKeys.Count == 0)
+        {
+            Settings.ShortcutKeys = ClientSettings.GetDefaultShortcuts();
             MarkDirty();
         }
     }
