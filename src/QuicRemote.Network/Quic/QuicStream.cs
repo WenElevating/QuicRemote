@@ -42,7 +42,9 @@ public sealed class QuicStream : IAsyncDisposable
         ReadOnlyMemory<byte> buffer,
         CancellationToken cancellationToken = default)
     {
-        _writer.Write(buffer.Span);
+        var span = _writer.GetSpan(buffer.Length);
+        buffer.Span.CopyTo(span);
+        _writer.Advance(buffer.Length);
         return await _writer.FlushAsync(cancellationToken);
     }
 

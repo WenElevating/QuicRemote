@@ -4,8 +4,8 @@
         xmlns:vm="clr-namespace:QuicRemote.Host.ViewModels"
         Style="{StaticResource AppleWindow}"
         Title="QuicRemote Host"
-        Height="520" Width="400"
-        MinHeight="520" MinWidth="400"
+        Height="580" Width="400"
+        MinHeight="580" MinWidth="400"
         WindowStartupLocation="CenterScreen">
 
     <Window.DataContext>
@@ -34,151 +34,235 @@
                                HorizontalAlignment="Center"/>
 
                     <!-- Settings Button -->
-                    <Button Style="{StaticResource IconButton}"
+                    <Button Command="{Binding ToggleSettingsCommand}"
+                            Style="{StaticResource IconButton}"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center"
                             ToolTip="Settings">
-                        <Path Data="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
-                              Stroke="#86868B"
-                              StrokeThickness="2"
-                              Width="18" Height="18"
+                        <Path Data="M19.14 12.94c.04-.31.06-.63.06-.94 0-.31-.02-.63-.06-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"
+                              Fill="{Binding ShowSettings, Converter={StaticResource BoolToColorConverter}, ConverterParameter='#0071E3|#86868B'}"
+                              Width="20" Height="20"
                               Stretch="Uniform"/>
                     </Button>
                 </Grid>
             </Border>
 
             <!-- Main Content -->
-            <StackPanel Grid.Row="1" Margin="24,0">
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="24,0">
 
-                <!-- Device ID Card -->
-                <Border Style="{StaticResource Card}" Margin="0,0,0,16">
-                    <StackPanel>
-                        <TextBlock Text="Your Device ID"
-                                   Style="{StaticResource CaptionText}"
-                                   Margin="0,0,0,8"/>
-
-                        <Grid>
-                            <TextBlock Text="{Binding DeviceId}"
-                                       FontSize="32"
-                                       FontWeight="Bold"
-                                       Foreground="#1D1D1F"
-                                       HorizontalAlignment="Center"/>
-
-                            <Button Command="{Binding CopyDeviceIdCommand}"
-                                    Style="{StaticResource IconButton}"
-                                    HorizontalAlignment="Right"
-                                    VerticalAlignment="Center"
-                                    ToolTip="Copy Device ID">
-                                <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
-                                      Fill="#86868B"
-                                      Width="18" Height="18"
-                                      Stretch="Uniform"/>
-                            </Button>
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <!-- Status Card -->
-                <Border Style="{StaticResource Card}" Margin="0,0,0,16">
-                    <StackPanel>
-                        <Grid Margin="0,0,0,16">
-                            <TextBlock Text="Status"
+                    <!-- Device ID Card -->
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                        <StackPanel>
+                            <TextBlock Text="Your Device ID"
                                        Style="{StaticResource CaptionText}"
-                                       VerticalAlignment="Center"/>
+                                       Margin="0,0,0,8"/>
 
-                            <Border Style="{StaticResource StatusBadge}"
-                                    Background="{Binding StatusColor, Converter={StaticResource ColorToBrushConverter}}"
-                                    HorizontalAlignment="Right">
-                                <TextBlock Text="{Binding StatusText}"
-                                           FontSize="12"
-                                           FontWeight="Medium"
-                                           Foreground="White"/>
-                            </Border>
-                        </Grid>
-
-                        <!-- Stats -->
-                        <Grid Visibility="{Binding ShowStats, Converter={StaticResource BoolToVisibilityConverter}}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                <TextBlock Text="{Binding ConnectedClients, StringFormat={}{0}}"
-                                           FontSize="24"
+                            <Grid>
+                                <TextBlock Text="{Binding DeviceId}"
+                                           FontSize="32"
                                            FontWeight="Bold"
                                            Foreground="#1D1D1F"
                                            HorizontalAlignment="Center"/>
-                                <TextBlock Text="Clients"
+
+                                <Button Command="{Binding CopyDeviceIdCommand}"
+                                        Style="{StaticResource IconButton}"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        ToolTip="Copy Device ID">
+                                    <Path Data="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"
+                                          Fill="#86868B"
+                                          Width="18" Height="18"
+                                          Stretch="Uniform"/>
+                                </Button>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Status Card -->
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,16">
+                                <TextBlock Text="Status"
                                            Style="{StaticResource CaptionText}"
-                                           HorizontalAlignment="Center"/>
-                            </StackPanel>
+                                           VerticalAlignment="Center"/>
 
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                                <TextBlock Text="{Binding FramesPerSecond, StringFormat={}{0} fps}"
-                                           FontSize="24"
-                                           FontWeight="Bold"
-                                           Foreground="#1D1D1F"
-                                           HorizontalAlignment="Center"/>
+                                <Border Style="{StaticResource StatusBadge}"
+                                        Background="{Binding StatusColor, Converter={StaticResource ColorToBrushConverter}}"
+                                        HorizontalAlignment="Right">
+                                    <TextBlock Text="{Binding StatusText}"
+                                               FontSize="12"
+                                               FontWeight="Medium"
+                                               Foreground="White"/>
+                                </Border>
+                            </Grid>
+
+                            <!-- Stats -->
+                            <Grid Visibility="{Binding ShowStats, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding ConnectedClients, StringFormat={}{0}}"
+                                               FontSize="24"
+                                               FontWeight="Bold"
+                                               Foreground="#1D1D1F"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Clients"
+                                               Style="{StaticResource CaptionText}"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding FramesPerSecond, StringFormat={}{0} fps}"
+                                               FontSize="24"
+                                               FontWeight="Bold"
+                                               Foreground="#1D1D1F"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Frame Rate"
+                                               Style="{StaticResource CaptionText}"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding Latency, StringFormat={}{0:F1} ms}"
+                                               FontSize="24"
+                                               FontWeight="Bold"
+                                               Foreground="#1D1D1F"
+                                               HorizontalAlignment="Center"/>
+                                    <TextBlock Text="Latency"
+                                               Style="{StaticResource CaptionText}"
+                                               HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Settings Panel -->
+                    <Border Style="{StaticResource Card}" Margin="0,0,0,16"
+                            Visibility="{Binding ShowSettings, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <StackPanel>
+                            <TextBlock Text="Encoder Settings"
+                                       FontSize="15"
+                                       FontWeight="SemiBold"
+                                       Foreground="#1D1D1F"
+                                       Margin="0,0,0,16"/>
+
+                            <!-- Codec Selection -->
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="Codec"
+                                           Style="{StaticResource CaptionText}"
+                                           VerticalAlignment="Center"/>
+
+                                <ComboBox SelectedItem="{Binding SelectedCodec}"
+                                          ItemsSource="{Binding CodecOptions}"
+                                          HorizontalAlignment="Right"
+                                          Width="200"
+                                          Padding="12,8"
+                                          BorderThickness="0"
+                                          Background="#F2F2F7"/>
+                            </Grid>
+
+                            <!-- Bitrate Setting -->
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="Bitrate"
+                                           Style="{StaticResource CaptionText}"
+                                           VerticalAlignment="Center"/>
+
+                                <ComboBox SelectedItem="{Binding BitrateKbps}"
+                                          ItemsSource="{Binding BitratePresets}"
+                                          HorizontalAlignment="Right"
+                                          Width="200"
+                                          Padding="12,8"
+                                          BorderThickness="0"
+                                          Background="#F2F2F7">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding StringFormat={}{0} Kbps}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Framerate Setting -->
+                            <Grid Margin="0,0,0,12">
                                 <TextBlock Text="Frame Rate"
                                            Style="{StaticResource CaptionText}"
-                                           HorizontalAlignment="Center"/>
-                            </StackPanel>
+                                           VerticalAlignment="Center"/>
 
-                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                <TextBlock Text="{Binding Latency, StringFormat={}{0:F1} ms}"
-                                           FontSize="24"
-                                           FontWeight="Bold"
-                                           Foreground="#1D1D1F"
-                                           HorizontalAlignment="Center"/>
-                                <TextBlock Text="Latency"
+                                <ComboBox SelectedItem="{Binding Framerate}"
+                                          ItemsSource="{Binding FramerateOptions}"
+                                          HorizontalAlignment="Right"
+                                          Width="200"
+                                          Padding="12,8"
+                                          BorderThickness="0"
+                                          Background="#F2F2F7">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding StringFormat={}{0} fps}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Password Setting -->
+                            <Grid Margin="0,0,0,12">
+                                <TextBlock Text="Password"
                                            Style="{StaticResource CaptionText}"
-                                           HorizontalAlignment="Center"/>
-                            </StackPanel>
-                        </Grid>
-                    </StackPanel>
-                </Border>
+                                           VerticalAlignment="Center"/>
 
-                <!-- Monitor Selection -->
-                <Grid Margin="0,0,0,16">
-                    <TextBlock Text="Monitor"
-                               Style="{StaticResource CaptionText}"
-                               VerticalAlignment="Center"/>
+                                <PasswordBox x:Name="PasswordBox"
+                                             Style="{StaticResource InputBox}"
+                                             Width="200"
+                                             HorizontalAlignment="Right"
+                                             PasswordChanged="OnPasswordChanged"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
-                    <ComboBox SelectedIndex="{Binding SelectedMonitorIndex}"
-                              HorizontalAlignment="Right"
-                              Width="200"
-                              Padding="12,8"
-                              BorderThickness="0"
-                              Background="#F2F2F7">
-                        <ComboBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock>
-                                    <Run Text="{Binding Name}"/>
-                                    <Run Text="  "/>
-                                    <Run Text="{Binding Width}"/>
-                                    <Run Text="x"/>
-                                    <Run Text="{Binding Height}"/>
-                                </TextBlock>
-                            </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                    </ComboBox>
-                </Grid>
+                    <!-- Monitor Selection -->
+                    <Grid Margin="0,0,0,16">
+                        <TextBlock Text="Monitor"
+                                   Style="{StaticResource CaptionText}"
+                                   VerticalAlignment="Center"/>
 
-                <!-- Port Setting -->
-                <Grid>
-                    <TextBlock Text="Port"
-                               Style="{StaticResource CaptionText}"
-                               VerticalAlignment="Center"/>
+                        <ComboBox SelectedIndex="{Binding SelectedMonitorIndex}"
+                                  HorizontalAlignment="Right"
+                                  Width="200"
+                                  Padding="12,8"
+                                  BorderThickness="0"
+                                  Background="#F2F2F7">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock>
+                                        <Run Text="{Binding Name}"/>
+                                        <Run Text="  "/>
+                                        <Run Text="{Binding Width}"/>
+                                        <Run Text="x"/>
+                                        <Run Text="{Binding Height}"/>
+                                    </TextBlock>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </Grid>
 
-                    <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}"
-                             Style="{StaticResource InputBox}"
-                             Width="200"
-                             HorizontalAlignment="Right"
-                             TextAlignment="Center"/>
-                </Grid>
-            </StackPanel>
+                    <!-- Port Setting -->
+                    <Grid>
+                        <TextBlock Text="Port"
+                                   Style="{StaticResource CaptionText}"
+                                   VerticalAlignment="Center"/>
+
+                        <TextBox Text="{Binding Port, UpdateSourceTrigger=PropertyChanged}"
+                                 Style="{StaticResource InputBox}"
+                                 Width="200"
+                                 HorizontalAlignment="Right"
+                                 TextAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
 
             <!-- Bottom Actions -->
             <Border Grid.Row="2" Padding="24,20" Background="Transparent">

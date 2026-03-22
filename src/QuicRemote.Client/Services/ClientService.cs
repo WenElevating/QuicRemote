@@ -22,6 +22,16 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
     private Task? _receiveTask;
     private bool _disposed;
 
+    // Reconnection support
+    private string? _lastHost;
+    private int _lastPort;
+    private string? _lastPassword;
+    private bool _autoReconnect = true;
+    private int _reconnectAttempts;
+    private int _maxReconnectAttempts = 5;
+    private TimeSpan _initialReconnectDelay = TimeSpan.FromSeconds(1);
+    private TimeSpan _maxReconnectDelay = TimeSpan.FromSeconds(30);
+
     [ObservableProperty]
     private ConnectionState _connectionState = ConnectionState.Disconnected;
 
@@ -46,6 +56,12 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     private int _remoteHeight;
 
+    [ObservableProperty]
+    private bool _isReconnecting;
+
+    [ObservableProperty]
+    private int _reconnectAttemptCount;
+
     /// <summary>
     /// Event raised when a frame is decoded and ready for display
     /// </summary>
@@ -55,6 +71,39 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
     /// Event raised when an error occurs
     /// </summary>
     public event EventHandler<Exception>? ErrorOccurred;
+
+    /// <summary>
+    /// Event raised when reconnection attempt starts
+    /// </summary>
+    public event EventHandler<int>? Reconnecting;
+
+    /// <summary>
+    /// Event raised when reconnection succeeds
+    /// </summary>
+    public event EventHandler? Reconnected;
+
+    /// <summary>
+    /// Event raised when reconnection fails after max attempts
+    /// </summary>
+    public event EventHandler? ReconnectionFailed;
+
+    /// <summary>
+    /// Gets or sets whether automatic reconnection is enabled
+    /// </summary>
+    public bool AutoReconnect
+    {
+        get => _autoReconnect;
+        set => _autoReconnect = value;
+    }
+
+    /// <summary>
+    /// Gets or sets the maximum number of reconnection attempts
+    /// </summary>
+    public int MaxReconnectAttempts
+    {
+        get => _maxReconnectAttempts;
+        set => _maxReconnectAttempts = Math.Max(1, value);
+    }
 
     /// <summary>
     /// Connects to a remote host
@@ -70,6 +119,12 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
         {
             ConnectionState = ConnectionState.Connecting;
             Status = $"Connecting to {host}:{port}...";
+
+            // Save connection parameters for reconnection
+            _lastHost = host;
+            _lastPort = port;
+            _lastPassword = password;
+            _reconnectAttempts = 0;
 
             // Parse endpoint
             var addresses = await Dns.GetHostAddressesAsync(host, cancellationToken);
@@ -119,6 +174,8 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
 
             ConnectionState = ConnectionState.Connected;
             Status = "Connected";
+            IsReconnecting = false;
+            ReconnectAttemptCount = 0;
         }
         catch
         {
@@ -132,13 +189,27 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
     /// </summary>
     public async Task DisconnectAsync()
     {
+        await DisconnectAsync(userInitiated: true);
+    }
+
+    private async Task DisconnectAsync(bool userInitiated)
+    {
         if (ConnectionState == ConnectionState.Disconnected)
         {
             return;
         }
 
+        // If user didn't initiate and auto-reconnect is enabled, try to reconnect
+        if (!userInitiated && _autoReconnect && _reconnectAttempts < _maxReconnectAttempts)
+        {
+            _ = TryReconnectAsync();
+            return;
+        }
+
         ConnectionState = ConnectionState.Disconnecting;
         Status = "Disconnecting...";
+        IsReconnecting = false;
+        ReconnectAttemptCount = 0;
 
         _cts?.Cancel();
 
@@ -173,6 +244,117 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
 
         ConnectionState = ConnectionState.Disconnected;
         Status = "Disconnected";
+    }
+
+    private async Task TryReconnectAsync()
+    {
+        if (string.IsNullOrEmpty(_lastHost))
+        {
+            await DisconnectAsync(userInitiated: true);
+            return;
+        }
+
+        _reconnectAttempts++;
+        ReconnectAttemptCount = _reconnectAttempts;
+        IsReconnecting = true;
+
+        // Calculate delay with exponential backoff
+        var delay = TimeSpan.FromMilliseconds(
+            Math.Min(
+                _initialReconnectDelay.TotalMilliseconds * Math.Pow(2, _reconnectAttempts - 1),
+                _maxReconnectDelay.TotalMilliseconds
+            )
+        );
+
+        Status = $"Connection lost. Reconnecting in {delay.TotalSeconds:F1}s (attempt {_reconnectAttempts}/{_maxReconnectAttempts})...";
+        Reconnecting?.Invoke(this, _reconnectAttempts);
+
+        await Task.Delay(delay);
+
+        if (_disposed || ConnectionState == ConnectionState.Disconnected)
+        {
+            return;
+        }
+
+        try
+        {
+            // Clean up old connection
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+
+            if (_stream != null)
+            {
+                await _stream.DisposeAsync();
+                _stream = null;
+            }
+
+            if (_connection != null)
+            {
+                await _connection.DisposeAsync();
+                _connection = null;
+            }
+
+            ConnectionState = ConnectionState.Connecting;
+            Status = $"Reconnecting to {_lastHost}:{_lastPort}...";
+
+            // Parse endpoint
+            var addresses = await Dns.GetHostAddressesAsync(_lastHost);
+            if (addresses.Length == 0)
+            {
+                throw new Exception($"Could not resolve host: {_lastHost}");
+            }
+
+            var endpoint = new IPEndPoint(addresses[0], _lastPort);
+
+            // Create new connection
+            _connection = await QuicConnection.ConnectAsync(endpoint, _lastHost);
+
+            ConnectionState = ConnectionState.Initializing;
+            Status = "Initializing session...";
+
+            // Create bidirectional stream
+            _stream = await _connection.OpenStreamAsync();
+
+            // Reinitialize decoder if needed
+            if (_decoder == null)
+            {
+                _decoder = new DecoderWrapper();
+                var decoderConfig = new DecoderConfig
+                {
+                    Codec = NativeMethods.QR_Codec.H264,
+                    MaxWidth = 3840,
+                    MaxHeight = 2160,
+                    HardwareAccelerated = true
+                };
+                _decoder.Create(decoderConfig);
+            }
+
+            _cts = new CancellationTokenSource();
+            _receiveTask = ReceiveLoopAsync(_cts.Token);
+
+            ConnectionState = ConnectionState.Connected;
+            Status = "Reconnected";
+            IsReconnecting = false;
+            ReconnectAttemptCount = 0;
+            _reconnectAttempts = 0;
+
+            Reconnected?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception)
+        {
+            if (_reconnectAttempts >= _maxReconnectAttempts)
+            {
+                IsReconnecting = false;
+                ReconnectionFailed?.Invoke(this, EventArgs.Empty);
+                await DisconnectAsync(userInitiated: true);
+            }
+            else
+            {
+                // Try again
+                _ = TryReconnectAsync();
+            }
+        }
     }
 
     /// <summary>
@@ -246,6 +428,18 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
                 var result = await _stream.ReadAsync(cancellationToken);
                 if (result.IsCompleted)
                 {
+                    // Connection closed by server, try to reconnect
+                    if (_autoReconnect && !_disposed)
+                    {
+                        _ = Task.Run(async () =>
+                        {
+                            await Task.Delay(100); // Small delay before reconnect
+                            if (ConnectionState == ConnectionState.Connected)
+                            {
+                                await DisconnectAsync(userInitiated: false);
+                            }
+                        }, CancellationToken.None);
+                    }
                     break;
                 }
 
@@ -260,7 +454,20 @@ public partial class ClientService : ObservableObject, IAsyncDisposable
             }
             catch (Exception ex)
             {
-                ErrorOccurred?.Invoke(this, ex);
+                // Connection error, try to reconnect
+                if (_autoReconnect && !_disposed && ConnectionState == ConnectionState.Connected)
+                {
+                    ErrorOccurred?.Invoke(this, ex);
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(100);
+                        if (ConnectionState == ConnectionState.Connected)
+                        {
+                            await DisconnectAsync(userInitiated: false);
+                        }
+                    }, CancellationToken.None);
+                }
+                break;
             }
         }
     }

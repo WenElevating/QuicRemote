@@ -25,18 +25,20 @@ public sealed class QuicConnection : IAsyncDisposable
         string serverName,
         CancellationToken cancellationToken = default)
     {
-        var clientAuthenticationOptions = new SslClientAuthenticationOptions
-        {
-            TargetHost = serverName,
-            RemoteCertificateValidationCallback = (_, _, _, _) => true
-        };
-
         var connectionOptions = new QuicClientConnectionOptions
         {
             RemoteEndPoint = endpoint,
-            ClientAuthenticationOptions = clientAuthenticationOptions,
-            DefaultStreamErrorCode = 0,
-            DefaultCloseErrorCode = 0,
+            ClientAuthenticationOptions = new SslClientAuthenticationOptions
+            {
+                TargetHost = serverName,
+                RemoteCertificateValidationCallback = (_, _, _, _) => true,
+                ApplicationProtocols = new List<SslApplicationProtocol>
+                {
+                    new SslApplicationProtocol("quicremote")
+                }
+            },
+            DefaultStreamErrorCode = 1,  // Must be > 0
+            DefaultCloseErrorCode = 1,   // Must be > 0
             MaxInboundUnidirectionalStreams = 10,
             MaxInboundBidirectionalStreams = 10,
             IdleTimeout = TimeSpan.FromMinutes(5)

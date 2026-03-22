@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuicRemote.Network.Tests", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuicRemote.Core.Tests", "tests\QuicRemote.Core.Tests\QuicRemote.Core.Tests.csproj", "{A754A169-A212-46C3-A145-3A4D93774255}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "QuicRemote.Integration.Tests", "tests\QuicRemote.Integration.Tests\QuicRemote.Integration.Tests.csproj", "{C3E6E272-7005-4A3A-AC4B-87128266A08A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,6 +54,10 @@ Global
 		{A754A169-A212-46C3-A145-3A4D93774255}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A754A169-A212-46C3-A145-3A4D93774255}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A754A169-A212-46C3-A145-3A4D93774255}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3E6E272-7005-4A3A-AC4B-87128266A08A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3E6E272-7005-4A3A-AC4B-87128266A08A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3E6E272-7005-4A3A-AC4B-87128266A08A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3E6E272-7005-4A3A-AC4B-87128266A08A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{1BB5C2F6-0E38-436A-9B49-4EA83BE82B47} = {1717120A-7081-447C-85DD-280619351D7D}
@@ -60,5 +66,6 @@ Global
 		{53CEF3A8-CB7D-454B-960C-511A6FA2B02B} = {1717120A-7081-447C-85DD-280619351D7D}
 		{0E8B24ED-23E9-400F-827C-B6825AF12D43} = {80D22E41-616E-4C23-96FE-CCB5764CBD42}
 		{A754A169-A212-46C3-A145-3A4D93774255} = {80D22E41-616E-4C23-96FE-CCB5764CBD42}
+		{C3E6E272-7005-4A3A-AC4B-87128266A08A} = {80D22E41-616E-4C23-96FE-CCB5764CBD42}
 	EndGlobalSection
 EndGlobal

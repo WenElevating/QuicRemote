@@ -1,4 +1,5 @@
 using System;
+using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,6 +12,7 @@ namespace QuicRemote.Client.ViewModels;
 public partial class ConnectViewModel : ObservableObject
 {
     private readonly ClientService _clientService;
+    private readonly SettingsService _settingsService;
     private bool _isDisposed;
 
     [ObservableProperty]
@@ -21,6 +23,9 @@ public partial class ConnectViewModel : ObservableObject
 
     [ObservableProperty]
     private string _deviceId = string.Empty;
+
+    [ObservableProperty]
+    private string _password = string.Empty;
 
     [ObservableProperty]
     private ConnectionState _connectionState = ConnectionState.Disconnected;
@@ -49,14 +54,52 @@ public partial class ConnectViewModel : ObservableObject
     [ObservableProperty]
     private int _remoteHeight;
 
+    [ObservableProperty]
+    private bool _isFullscreen;
+
+    [ObservableProperty]
+    private bool _showSettings;
+
+    [ObservableProperty]
+    private string _selectedScaleMode = "AspectFit";
+
+    [ObservableProperty]
+    private string _selectedCodec = "H264";
+
+    public ObservableCollection<ConnectionHistoryEntry> ConnectionHistory { get; } = new();
+
+    public string[] ScaleModeOptions { get; } = new[] { "AspectFit", "Fill", "Stretch" };
+    public string[] CodecOptions { get; } = new[] { "H264", "H265" };
+
     public event EventHandler? Connected;
     public event EventHandler<Exception>? ConnectionFailed;
+    public event EventHandler? ToggleFullscreenRequested;
 
     public ConnectViewModel()
     {
+        _settingsService = new SettingsService();
         _clientService = new ClientService();
         _clientService.FrameDecoded += OnFrameDecoded;
         _clientService.ErrorOccurred += OnErrorOccurred;
+
+        LoadSettings();
+        LoadConnectionHistory();
+    }
+
+    private void LoadSettings()
+    {
+        var settings = _settingsService.Settings;
+        SelectedScaleMode = settings.ScaleMode;
+        SelectedCodec = settings.Codec;
+    }
+
+    private void LoadConnectionHistory()
+    {
+        ConnectionHistory.Clear();
+        foreach (var entry in _settingsService.Settings.ConnectionHistory)
+        {
+            ConnectionHistory.Add(entry);
+        }
     }
 
     partial void OnDeviceIdChanged(string value)
@@ -66,6 +109,35 @@ public partial class ConnectViewModel : ObservableObject
         {
             DeviceId = value.Substring(0, 6).ToUpper();
         }
+    }
+
+    partial void OnSelectedScaleModeChanged(string value)
+    {
+        _settingsService.UpdateScaleMode(value);
+    }
+
+    partial void OnSelectedCodecChanged(string value)
+    {
+        if (_settingsService.Settings.Codec != value)
+        {
+            _settingsService.Settings.Codec = value;
+            _settingsService.MarkDirty();
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleSettings()
+    {
+        ShowSettings = !ShowSettings;
+    }
+
+    [RelayCommand]
+    private void SelectHistoryEntry(ConnectionHistoryEntry entry)
+    {
+        if (entry == null) return;
+        Host = entry.Host;
+        Port = entry.Port;
+        DeviceId = entry.DeviceId ?? string.Empty;
     }
 
     [RelayCommand]
@@ -99,6 +171,9 @@ public partial class ConnectViewModel : ObservableObject
             }
 
             await _clientService.ConnectAsync(hostToUse, Port);
+
+            // Add to connection history
+            _settingsService.AddConnectionHistory(hostToUse, Port, DeviceId);
 
             IsConnected = true;
             ConnectionState = ConnectionState.Connected;
@@ -139,6 +214,23 @@ public partial class ConnectViewModel : ObservableObject
         finally
         {
             ResetState();
+        }
+    }
+
+    [RelayCommand]
+    private void ToggleFullscreen()
+    {
+        IsFullscreen = !IsFullscreen;
+        ToggleFullscreenRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    [RelayCommand]
+    private void ExitFullscreen()
+    {
+        if (IsFullscreen)
+        {
+            IsFullscreen = false;
+            ToggleFullscreenRequested?.Invoke(this, EventArgs.Empty);
         }
     }
 
@@ -195,6 +287,7 @@ public partial class ConnectViewModel : ObservableObject
             await _clientService.DisconnectAsync();
         }
 
+        await _settingsService.SaveSettingsAsync();
         await _clientService.DisposeAsync();
     }
 }

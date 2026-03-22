@@ -45,8 +45,8 @@ public sealed class QuicListener : IAsyncDisposable
                 new QuicServerConnectionOptions
                 {
                     ServerAuthenticationOptions = serverAuthenticationOptions,
-                    DefaultStreamErrorCode = 0,
-                    DefaultCloseErrorCode = 0,
+                    DefaultStreamErrorCode = 1,  // Must be > 0
+                    DefaultCloseErrorCode = 1,   // Must be > 0
                     MaxInboundUnidirectionalStreams = 10,
                     MaxInboundBidirectionalStreams = 10,
                     IdleTimeout = TimeSpan.FromMinutes(5)
